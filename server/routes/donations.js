@@ -1,0 +1,282 @@
+const express = require('express');
+const { body, validationResult } = require('express-validator');
+const Donation = require('../models/Donation');
+const Program = require('../models/Program');
+const { auth, optionalAuth } = require('../middleware/auth');
+const router = express.Router();
+
+// @route   POST /api/donations
+// @desc    Create a new donation
+// @access  Private
+router.post('/', [
+  optionalAuth,
+  body('programId').isMongoId().withMessage('Valid program ID is required'),
+  body('amount').isFloat({ min: 1 }).withMessage('Amount must be greater than 0'),
+  body('currency').optional().isIn(['USD', 'EUR', 'GBP', 'KES', 'UGX']),
+  body('paymentMethod').isIn(['stripe', 'paypal', 'bank_transfer', 'check', 'cash']),
+  body('anonymous').optional().isBoolean(),
+  body('message').optional().isLength({ max: 500 }),
+  body('recurring.isRecurring').optional().isBoolean(),
+  body('recurring.frequency').optional().isIn(['monthly', 'quarterly', 'yearly'])
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        message: 'Validation failed',
+        errors: errors.array() 
+      });
+    }
+
+    const {
+      programId,
+      amount,
+      currency = 'USD',
+      paymentMethod,
+      anonymous = false,
+      message,
+      recurring = { isRecurring: false, frequency: 'monthly' }
+    } = req.body;
+
+    // Check if program exists
+    const program = await Program.findById(programId);
+    if (!program) {
+      return res.status(404).json({ message: 'Program not found' });
+    }
+
+    // Check if program is active
+    if (program.status !== 'active') {
+      return res.status(400).json({ message: 'This program is not currently accepting donations' });
+    }
+
+    // Create donation
+    const donationData = {
+      program: programId,
+      amount,
+      currency,
+      paymentMethod,
+      anonymous: req.user ? anonymous : true, // Force anonymous if not authenticated
+      message,
+      recurring
+    };
+
+    // Add donor if authenticated
+    if (req.user) {
+      donationData.donor = req.user.id;
+    }
+
+    const donation = new Donation(donationData);
+    await donation.save();
+
+    // Populate program details
+    await donation.populate('program', 'name category image');
+
+    res.status(201).json({
+      message: 'Donation created successfully',
+      donation: {
+        id: donation._id,
+        amount: donation.amount,
+        currency: donation.currency,
+        paymentMethod: donation.paymentMethod,
+        paymentStatus: donation.paymentStatus,
+        program: donation.program,
+        anonymous: donation.anonymous,
+        message: donation.message,
+        recurring: donation.recurring,
+        createdAt: donation.createdAt
+      }
+    });
+
+  } catch (error) {
+    console.error('Create donation error:', error);
+    res.status(500).json({ message: 'Server error during donation creation' });
+  }
+});
+
+// @route   GET /api/donations
+// @desc    Get user's donation history
+// @access  Private
+router.get('/', auth, async (req, res) => {
+  try {
+    const { page = 1, limit = 10, status } = req.query;
+    
+    const query = { donor: req.user.id };
+    if (status) {
+      query.paymentStatus = status;
+    }
+
+    const donations = await Donation.find(query)
+      .populate('program', 'name category image')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .exec();
+
+    const total = await Donation.countDocuments(query);
+
+    res.json({
+      donations,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      totalDonations: total
+    });
+
+  } catch (error) {
+    console.error('Get donations error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   GET /api/donations/:id
+// @desc    Get specific donation details
+// @access  Private
+router.get('/:id', auth, async (req, res) => {
+  try {
+    const donation = await Donation.findById(req.params.id)
+      .populate('program', 'name category image description')
+      .populate('donor', 'firstName lastName email');
+
+    if (!donation) {
+      return res.status(404).json({ message: 'Donation not found' });
+    }
+
+    // Check if user owns this donation or is admin
+    if (donation.donor._id.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    res.json({ donation });
+
+  } catch (error) {
+    console.error('Get donation error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   PUT /api/donations/:id/status
+// @desc    Update donation payment status
+// @access  Private (Admin only)
+router.put('/:id/status', auth, async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    if (!['pending', 'processing', 'completed', 'failed', 'refunded'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    const donation = await Donation.findById(req.params.id);
+    if (!donation) {
+      return res.status(404).json({ message: 'Donation not found' });
+    }
+
+    // Only allow status updates if user is admin or the donation belongs to them
+    if (donation.donor.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    donation.paymentStatus = status;
+    await donation.save();
+
+    res.json({
+      message: 'Donation status updated successfully',
+      donation: {
+        id: donation._id,
+        paymentStatus: donation.paymentStatus,
+        updatedAt: donation.updatedAt
+      }
+    });
+
+  } catch (error) {
+    console.error('Update donation status error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   GET /api/donations/stats/overview
+// @desc    Get donation statistics
+// @access  Public
+router.get('/stats/overview', async (req, res) => {
+  try {
+    const stats = await Donation.getStats();
+    
+    // Get recent donations
+    const recentDonations = await Donation.find({ paymentStatus: 'completed' })
+      .populate('program', 'name category')
+      .sort({ createdAt: -1 })
+      .limit(5);
+
+    // Get top programs by donations
+    const topPrograms = await Donation.aggregate([
+      { $match: { paymentStatus: 'completed' } },
+      {
+        $group: {
+          _id: '$program',
+          totalAmount: { $sum: '$amount' },
+          donationCount: { $sum: 1 }
+        }
+      },
+      { $sort: { totalAmount: -1 } },
+      { $limit: 5 }
+    ]);
+
+    // Populate program details for top programs
+    const topProgramsWithDetails = await Program.populate(topPrograms, {
+      path: '_id',
+      select: 'name category image'
+    });
+
+    res.json({
+      stats,
+      recentDonations,
+      topPrograms: topProgramsWithDetails
+    });
+
+  } catch (error) {
+    console.error('Get donation stats error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   GET /api/donations/program/:programId
+// @desc    Get donations for a specific program
+// @access  Public
+router.get('/program/:programId', async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const { programId } = req.params;
+
+    // Check if program exists
+    const program = await Program.findById(programId);
+    if (!program) {
+      return res.status(404).json({ message: 'Program not found' });
+    }
+
+    const donations = await Donation.find({ 
+      program: programId,
+      paymentStatus: 'completed'
+    })
+      .populate('donor', 'firstName lastName')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .exec();
+
+    const total = await Donation.countDocuments({ 
+      program: programId,
+      paymentStatus: 'completed'
+    });
+
+    res.json({
+      donations,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      totalDonations: total
+    });
+
+  } catch (error) {
+    console.error('Get program donations error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+module.exports = router; 

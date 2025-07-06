@@ -1,0 +1,29 @@
+{
+  "name": "gifted-giving-app",
+  "version": "1.0.0",
+  "description": "Modern donation platform for children's education, health, and nutrition",
+  "main": "server/index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd server && npm run dev",
+    "client": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "install-all": "npm install && cd server && npm install && cd ../client && npm install",
+    "start": "cd server && npm start"
+  },
+  "keywords": [
+    "donation",
+    "charity",
+    "children",
+    "education",
+    "health"
+  ],
+  "author": "Gifted Giving Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "mongodb": "^6.17.0"
+  }
+}

@@ -1,0 +1,193 @@
+const mongoose = require('mongoose');
+
+const donationSchema = new mongoose.Schema({
+  donor: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: function() {
+      // Donor is required only if not anonymous
+      return !this.anonymous;
+    }
+  },
+  program: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Program',
+    required: [true, 'Program is required']
+  },
+  amount: {
+    type: Number,
+    required: [true, 'Donation amount is required'],
+    min: [1, 'Donation amount must be greater than 0']
+  },
+  currency: {
+    type: String,
+    default: 'USD',
+    enum: ['USD', 'EUR', 'GBP', 'KES', 'UGX']
+  },
+  paymentMethod: {
+    type: String,
+    enum: ['stripe', 'paypal', 'bank_transfer', 'check', 'cash'],
+    required: [true, 'Payment method is required']
+  },
+  paymentStatus: {
+    type: String,
+    enum: ['pending', 'processing', 'completed', 'failed', 'refunded'],
+    default: 'pending'
+  },
+  transactionId: {
+    type: String
+  },
+  stripePaymentIntentId: String,
+  paypalOrderId: String,
+  anonymous: {
+    type: Boolean,
+    default: false
+  },
+  recurring: {
+    isRecurring: {
+      type: Boolean,
+      default: false
+    },
+    frequency: {
+      type: String,
+      enum: ['monthly', 'quarterly', 'yearly'],
+      default: 'monthly'
+    },
+    nextPaymentDate: Date,
+    endDate: Date,
+    totalPayments: {
+      type: Number,
+      default: 0
+    }
+  },
+  designation: {
+    type: String,
+    enum: ['general', 'specific', 'emergency'],
+    default: 'general'
+  },
+  message: {
+    type: String,
+    maxlength: [500, 'Message cannot exceed 500 characters']
+  },
+  impact: {
+    childrenHelped: {
+      type: Number,
+      default: 0
+    },
+    mealsProvided: {
+      type: Number,
+      default: 0
+    },
+    schoolSupplies: {
+      type: Number,
+      default: 0
+    },
+    medicalCheckups: {
+      type: Number,
+      default: 0
+    }
+  },
+  taxReceipt: {
+    issued: {
+      type: Boolean,
+      default: false
+    },
+    issuedDate: Date,
+    receiptNumber: String
+  },
+  metadata: {
+    ipAddress: String,
+    userAgent: String,
+    referrer: String,
+    utmSource: String,
+    utmMedium: String,
+    utmCampaign: String
+  },
+  notes: {
+    admin: String,
+    donor: String
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  }
+}, {
+  timestamps: true
+});
+
+// Index for efficient queries
+donationSchema.index({ donor: 1, createdAt: -1 });
+donationSchema.index({ program: 1, createdAt: -1 });
+donationSchema.index({ paymentStatus: 1 });
+donationSchema.index({ transactionId: 1 });
+
+// Virtual for formatted amount
+donationSchema.virtual('formattedAmount').get(function() {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: this.currency
+  }).format(this.amount);
+});
+
+// Pre-save middleware to update user stats
+donationSchema.pre('save', async function(next) {
+  if (this.isNew && this.paymentStatus === 'completed') {
+    try {
+      const User = mongoose.model('User');
+      const Program = mongoose.model('Program');
+      
+      // Update user donation stats only if donor exists (not anonymous)
+      if (this.donor) {
+        await User.findByIdAndUpdate(this.donor, {
+          $inc: { 
+            totalDonated: this.amount,
+            donationCount: 1
+          },
+          lastDonationDate: new Date()
+        });
+      }
+      
+      // Update program current amount
+      await Program.findByIdAndUpdate(this.program, {
+        $inc: { currentAmount: this.amount }
+      });
+    } catch (error) {
+      console.error('Error updating stats:', error);
+    }
+  }
+  next();
+});
+
+// Static method to get donation statistics
+donationSchema.statics.getStats = async function() {
+  const stats = await this.aggregate([
+    {
+      $match: { paymentStatus: 'completed' }
+    },
+    {
+      $group: {
+        _id: null,
+        totalAmount: { $sum: '$amount' },
+        totalDonations: { $sum: 1 },
+        avgDonation: { $avg: '$amount' }
+      }
+    }
+  ]);
+  
+  return stats[0] || { totalAmount: 0, totalDonations: 0, avgDonation: 0 };
+};
+
+// Static method to get donations by date range
+donationSchema.statics.getDonationsByDateRange = async function(startDate, endDate) {
+  return await this.find({
+    createdAt: { $gte: startDate, $lte: endDate },
+    paymentStatus: 'completed'
+  }).populate('donor', 'firstName lastName email')
+    .populate('program', 'name category');
+};
+
+module.exports = mongoose.model('Donation', donationSchema); 
