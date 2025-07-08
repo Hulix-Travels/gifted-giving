@@ -1,0 +1,169 @@
+name: Deploy Gifted Giving Website
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  # Test and Build Frontend
+  frontend:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ./client
+        run: npm ci
+
+      - name: Run frontend linting
+        working-directory: ./client
+        run: npm run lint
+
+      - name: Build frontend
+        working-directory: ./client
+        run: npm run build
+
+      - name: Upload frontend build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: client/dist
+          retention-days: 1
+
+  # Test Backend
+  backend-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: ./server
+        run: npm ci
+
+      - name: Run backend tests
+        working-directory: ./server
+        run: npm test
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI_TEST }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET_TEST }}
+
+  # Deploy Backend to EC2
+  deploy-backend:
+    needs: [backend-test]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Add EC2 to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+            cd ${{ secrets.EC2_APP_PATH }} &&
+            git pull origin main &&
+            npm ci --only=production &&
+            pm2 restart gifted-giving-backend || pm2 start index.js --name gifted-giving-backend &&
+            pm2 save
+          "
+
+  # Deploy Frontend to S3
+  deploy-frontend:
+    needs: [frontend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ./client
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: ./client
+        run: npm run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy to S3
+        run: |
+          aws s3 sync client/dist/ s3://${{ secrets.S3_BUCKET_NAME }} --delete
+
+      - name: Invalidate CloudFront cache
+        if: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+
+  # Health Check
+  health-check:
+    needs: [deploy-backend, deploy-frontend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+      - name: Check backend health
+        run: |
+          echo "Checking backend health..."
+          curl -f ${{ secrets.BACKEND_URL }}/api/health || exit 1
+
+      - name: Check frontend availability
+        run: |
+          echo "Checking frontend availability..."
+          curl -f ${{ secrets.FRONTEND_URL }} || exit 1
+
+      - name: Notify deployment success
+        run: |
+          echo "🎉 Deployment completed successfully!"
+          echo "Backend: ${{ secrets.BACKEND_URL }}"
+          echo "Frontend: ${{ secrets.FRONTEND_URL }}" 
