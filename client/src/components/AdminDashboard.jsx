@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -78,7 +78,7 @@ function TabPanel({ children, value, index, ...other }) {
 export default function AdminDashboard() {
   const { user } = useAuth();
   const [tabValue, setTabValue] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [_loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   
   // Dashboard Stats
@@ -94,7 +94,7 @@ export default function AdminDashboard() {
   const [volunteers, setVolunteers] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [_dialogOpen, _setDialogOpen] = useState(false);
 
   useEffect(() => {
     if (user?.role === 'admin') {

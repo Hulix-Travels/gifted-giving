@@ -46,7 +46,7 @@ export default function AuthModal({ open, onClose }) {
       await login(loginData);
       onClose();
       setLoginData({ email: '', password: '' });
-    } catch (err) {
+    } catch (_err) {
       // Error is handled by the auth context
     } finally {
       setLoading(false);
@@ -74,7 +74,7 @@ export default function AuthModal({ open, onClose }) {
         password: '',
         confirmPassword: ''
       });
-    } catch (err) {
+    } catch (_err) {
       // Error is handled by the auth context
     } finally {
       setLoading(false);

@@ -117,7 +117,7 @@ export default function PaymentProcessor({ open, onClose, donationData, onSucces
       
       onClose();
       
-    } catch (error) {
+    } catch (_error) {
       setError('Payment failed. Please try again.');
     } finally {
       setLoading(false);

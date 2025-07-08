@@ -50,7 +50,7 @@ export default function Header() {
     handleClose();
   };
 
-  const handleProfile = () => {
+  const _handleProfile = () => {
     scrollToSection('#user-dashboard');
     handleClose();
   };

@@ -170,7 +170,7 @@ function CheckoutForm({ amount, currency = 'usd', onSuccess, onError, donationDa
     }
   };
 
-  const renderButtonIcon = () => {
+  const _renderButtonIcon = () => {
     return <Lock />;
   };
 

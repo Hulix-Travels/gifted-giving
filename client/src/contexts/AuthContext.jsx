@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authAPI } from '../services/api';
+import { AUTH_STORAGE_KEY } from '../constants/auth';
 
 const AuthContext = createContext();
 
@@ -18,7 +19,7 @@ export const AuthProvider = ({ children }) => {
 
   // Check if user is logged in on app start
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem(AUTH_STORAGE_KEY);
     if (token) {
       authAPI.getProfile()
         .then(data => {
@@ -26,7 +27,7 @@ export const AuthProvider = ({ children }) => {
         })
         .catch(err => {
           console.error('Failed to get user profile:', err);
-          localStorage.removeItem('token');
+          localStorage.removeItem(AUTH_STORAGE_KEY);
         })
         .finally(() => {
           setLoading(false);
@@ -40,7 +41,7 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       const data = await authAPI.login(credentials);
-      localStorage.setItem('token', data.token);
+      localStorage.setItem(AUTH_STORAGE_KEY, data.token);
       setUser(data.user);
       return data;
     } catch (err) {
@@ -53,7 +54,7 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       const data = await authAPI.register(userData);
-      localStorage.setItem('token', data.token);
+      localStorage.setItem(AUTH_STORAGE_KEY, data.token);
       setUser(data.user);
       return data;
     } catch (err) {
@@ -63,7 +64,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
+    localStorage.removeItem(AUTH_STORAGE_KEY);
     setUser(null);
     setError(null);
   };

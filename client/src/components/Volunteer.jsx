@@ -133,7 +133,7 @@ export default function Volunteer() {
       newErrors.phone = 'Phone number is required';
     } else if (cleanPhone.length < 10 || cleanPhone.length > 15) {
       newErrors.phone = 'Phone number must be 10-15 digits';
-    } else if (!/^[\+]?[1-9][\d]{9,14}$/.test(cleanPhone)) {
+    } else if (!/^[+]?[1-9][\d]{9,14}$/.test(cleanPhone)) {
       newErrors.phone = 'Please enter a valid phone number';
     }
 
@@ -180,7 +180,7 @@ export default function Volunteer() {
       newErrors.emergencyPhone = 'Emergency contact phone is required';
     } else if (cleanEmergencyPhone.length < 10 || cleanEmergencyPhone.length > 15) {
       newErrors.emergencyPhone = 'Emergency contact phone must be 10-15 digits';
-    } else if (!/^[\+]?[1-9][\d]{9,14}$/.test(cleanEmergencyPhone)) {
+    } else if (!/^[+]?[1-9][\d]{9,14}$/.test(cleanEmergencyPhone)) {
       newErrors.emergencyPhone = 'Please enter a valid emergency contact phone number';
     }
 
@@ -273,7 +273,7 @@ export default function Volunteer() {
               const fieldName = err.param ? err.param.charAt(0).toUpperCase() + err.param.slice(1) : 'Field';
               const message = err.msg || err.message || 'Invalid value';
               return `${fieldName}: ${message}`;
-                         } catch (e) {
+                         } catch (_e) {
                return 'Invalid field value';
              }
           }).join(', ');

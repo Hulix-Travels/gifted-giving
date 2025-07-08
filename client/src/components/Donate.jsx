@@ -62,7 +62,7 @@ export default function Donate() {
   const [recurringFrequency, setRecurringFrequency] = useState('monthly');
   const [loading, setLoading] = useState(false);
   const [programsLoading, setProgramsLoading] = useState(true);
-  const [showStripePayment, setShowStripePayment] = useState(false);
+  const [_showStripePayment, setShowStripePayment] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   // Fetch programs on component mount
@@ -183,7 +183,7 @@ export default function Donate() {
           }
         };
 
-        const response = await donationsAPI.create(donationData);
+        const _response = await donationsAPI.create(donationData);
         
         setSnackbar({ 
           open: true, 
@@ -210,7 +210,7 @@ export default function Donate() {
     }
   };
 
-  const handleStripeSuccess = (paymentResult) => {
+  const handleStripeSuccess = (_paymentResult) => {
     setShowStripePayment(false);
     setSnackbar({ 
       open: true, 

@@ -95,9 +95,11 @@ app.use('*', (req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`📱 Frontend URL: ${process.env.CLIENT_URL || 'http://localhost:3000'}`);
   console.log(`🔗 API URL: http://localhost:${PORT}/api`);
-}); 
+});
+
+module.exports = app; 

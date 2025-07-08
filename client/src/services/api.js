@@ -1,8 +1,10 @@
+import { AUTH_STORAGE_KEY } from '../constants/auth';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // Helper function to handle API requests
 const apiRequest = async (endpoint, options = {}) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem(AUTH_STORAGE_KEY);
   
   const config = {
     headers: {
