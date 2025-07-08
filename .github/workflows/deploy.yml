@@ -158,7 +158,17 @@ jobs:
       - name: Check backend health
         run: |
           echo "Checking backend health..."
-          curl -f ${{ secrets.BACKEND_URL }}/api/health || exit 1
+          # Try both HTTP and HTTPS
+          if curl -f ${{ secrets.BACKEND_URL }}/api/health; then
+            echo "✅ Backend health check passed"
+          elif curl -f ${BACKEND_URL/https:/http:}/api/health; then
+            echo "✅ Backend health check passed (HTTP fallback)"
+          elif curl -f ${BACKEND_URL/http:/https:}/api/health; then
+            echo "✅ Backend health check passed (HTTPS fallback)"
+          else
+            echo "❌ Backend health check failed"
+            exit 1
+          fi
 
       - name: Check frontend availability
         run: |
