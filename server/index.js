@@ -21,22 +21,27 @@ const stripeRoutes = require('./routes/stripe');
 
 // Security middleware
 app.use(helmet());
-const allowedOrigins = [
-  process.env.CLIENT_URL,
-  'http://localhost:3000'
-];
-
 app.use(cors({
   origin: function(origin, callback) {
-    // allow requests with no origin (like mobile apps, curl, etc.)
+    // Allow requests with no origin (like mobile apps, curl, etc.)
     if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'https://gifted-giving-frontend.s3.eu-north-1.amazonaws.com',
+      'http://localhost:3000',
+      'http://localhost:5173' // Vite dev server
+    ];
+    
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     } else {
+      console.log('CORS blocked origin:', origin);
       return callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Rate limiting
