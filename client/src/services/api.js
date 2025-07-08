@@ -159,11 +159,20 @@ export const usersAPI = {
 // Health check
 export const healthCheck = () => apiRequest('/health');
 
+// Stripe API
+export const stripeAPI = {
+  createPaymentIntent: (data) => apiRequest('/stripe/create-payment-intent', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+};
+
 export default {
   auth: authAPI,
   programs: programsAPI,
   donations: donationsAPI,
   volunteers: volunteersAPI,
   users: usersAPI,
+  stripe: stripeAPI,
   healthCheck,
 }; 

@@ -34,6 +34,7 @@ import {
   Lock,
   Payment
 } from '@mui/icons-material';
+import { stripeAPI } from '../services/api';
 
 // Load Stripe with your publishable key
 const stripePromise = loadStripe('pk_test_51RhMg2QR8d2LcBasSx0AiTAeNQFbOmavHh8q9LvE9OyAd8Y2MawJ0LMgWq6dppC3k1nEpLE50AznemCnWLC7MlLZ00Zumt7zZj');
@@ -193,28 +194,14 @@ function CheckoutForm({ amount, currency = 'usd', onSuccess, onError, donationDa
 
     try {
       // Create payment intent on the server
-      const response = await fetch('http://localhost:5000/api/stripe/create-payment-intent', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          amount,
-          currency,
-          programId: donationData.programId,
-          anonymous: donationData.anonymous,
-          message: donationData.message,
-          recurring: donationData.recurring
-        })
+      const { clientSecret, paymentIntentId, donationId } = await stripeAPI.createPaymentIntent({
+        amount,
+        currency,
+        programId: donationData.programId,
+        anonymous: donationData.anonymous,
+        message: donationData.message,
+        recurring: donationData.recurring
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to create payment intent');
-      }
-
-      const { clientSecret, paymentIntentId, donationId } = await response.json();
 
       // Confirm the payment with Stripe
       const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
