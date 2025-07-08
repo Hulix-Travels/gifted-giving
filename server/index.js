@@ -27,7 +27,8 @@ app.use(cors({
     if (!origin) return callback(null, true);
     
     const allowedOrigins = [
-      'https://gifted-giving-frontend.s3.eu-north-1.amazonaws.com',
+      'http://gifted-giving-frontend.s3-website.eu-north-1.amazonaws.com',
+      'https://gifted-giving-frontend.s3-website.eu-north-1.amazonaws.com',
       'http://localhost:3000',
       'http://localhost:5173' // Vite dev server
     ];
