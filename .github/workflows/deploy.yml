@@ -67,6 +67,7 @@ jobs:
         working-directory: ./server
         run: npm test
         env:
+          NODE_ENV: test
           MONGODB_URI: ${{ secrets.MONGODB_URI_TEST }}
           JWT_SECRET: ${{ secrets.JWT_SECRET_TEST }}
 
