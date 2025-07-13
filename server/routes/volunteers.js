@@ -230,10 +230,8 @@ router.get('/stats', async (req, res) => {
             $sum: { $cond: [{ $eq: ['$status', 'approved'] }, 1, 0] }
           },
           averageAge: { $avg: '$age' },
-          ageRange: {
-            min: { $min: '$age' },
-            max: { $max: '$age' }
-          }
+          minAge: { $min: '$age' },
+          maxAge: { $max: '$age' }
         }
       }
     ]);
@@ -286,7 +284,8 @@ router.get('/stats', async (req, res) => {
         pendingApplications: 0,
         approvedApplications: 0,
         averageAge: 0,
-        ageRange: { min: 0, max: 0 }
+        minAge: 0,
+        maxAge: 0
       },
       byLocation: locationStats,
       bySkills: skillsStats,

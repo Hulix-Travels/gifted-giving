@@ -178,6 +178,109 @@ programSchema.virtual('progressPercentage').get(function() {
   return Math.round((this.currentAmount / this.targetAmount) * 100);
 });
 
+// Static method to recalculate current amount for all programs
+programSchema.statics.recalculateCurrentAmounts = async function() {
+  try {
+    const Donation = mongoose.model('Donation');
+    
+    // Get all programs
+    const programs = await this.find();
+    const results = [];
+    
+    for (const program of programs) {
+      // Calculate total completed donations for this program
+      const totalDonations = await Donation.aggregate([
+        {
+          $match: {
+            program: program._id,
+            paymentStatus: 'completed'
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalAmount: { $sum: '$amount' }
+          }
+        }
+      ]);
+      
+      const calculatedAmount = totalDonations[0]?.totalAmount || 0;
+      const previousAmount = program.currentAmount || 0;
+      
+      // Update program if amount is different
+      if (calculatedAmount !== previousAmount) {
+        program.currentAmount = calculatedAmount;
+        await program.save();
+        
+        results.push({
+          programId: program._id,
+          programName: program.name,
+          previousAmount,
+          newAmount: calculatedAmount,
+          difference: calculatedAmount - previousAmount
+        });
+        
+        console.log(`🔄 Updated ${program.name}: ${previousAmount} → ${calculatedAmount}`);
+      }
+    }
+    
+    return {
+      message: 'Program current amounts recalculated successfully',
+      updatedPrograms: results.length,
+      details: results
+    };
+  } catch (error) {
+    console.error('Error recalculating program amounts:', error);
+    throw error;
+  }
+};
+
+// Static method to recalculate current amount for a specific program
+programSchema.statics.recalculateCurrentAmount = async function(programId) {
+  try {
+    const Donation = mongoose.model('Donation');
+    
+    const program = await this.findById(programId);
+    if (!program) {
+      throw new Error('Program not found');
+    }
+    
+    // Calculate total completed donations for this program
+    const totalDonations = await Donation.aggregate([
+      {
+        $match: {
+          program: program._id,
+          paymentStatus: 'completed'
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalAmount: { $sum: '$amount' }
+        }
+      }
+    ]);
+    
+    const calculatedAmount = totalDonations[0]?.totalAmount || 0;
+    const previousAmount = program.currentAmount || 0;
+    
+    // Update program
+    program.currentAmount = calculatedAmount;
+    await program.save();
+    
+    return {
+      programId: program._id,
+      programName: program.name,
+      previousAmount,
+      newAmount: calculatedAmount,
+      difference: calculatedAmount - previousAmount
+    };
+  } catch (error) {
+    console.error('Error recalculating program amount:', error);
+    throw error;
+  }
+};
+
 // Virtual for days remaining
 programSchema.virtual('daysRemaining').get(function() {
   const now = new Date();
@@ -197,11 +300,13 @@ programSchema.index({
 
 // Pre-save middleware to generate slug
 programSchema.pre('save', function(next) {
-  if (this.isModified('name')) {
+  console.log('Pre-save hook:', { name: this.name, isNew: this.isNew, isModified: this.isModified('name') });
+  if (this.isNew || this.isModified('name')) {
     this.slug = this.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
+    console.log('Generated slug:', this.slug);
   }
   next();
 });

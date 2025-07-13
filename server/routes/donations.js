@@ -127,6 +127,49 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+// @route   GET /api/donations/all
+// @desc    Get all donations (Admin only)
+// @access  Private (Admin only)
+router.get('/all', auth, async (req, res) => {
+  try {
+    // Check if user is admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied. Admin privileges required.' });
+    }
+
+    const { page = 1, limit = 50, status, programId } = req.query;
+    
+    const query = {};
+    if (status) {
+      query.paymentStatus = status;
+    }
+    if (programId) {
+      query.program = programId;
+    }
+
+    const donations = await Donation.find(query)
+      .populate('program', 'name category image')
+      .populate('donor', 'firstName lastName email')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .exec();
+
+    const total = await Donation.countDocuments(query);
+
+    res.json({
+      donations,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      totalDonations: total
+    });
+
+  } catch (error) {
+    console.error('Get all donations error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // @route   GET /api/donations/:id
 // @desc    Get specific donation details
 // @access  Private
@@ -197,7 +240,62 @@ router.put('/:id/status', auth, async (req, res) => {
 // @access  Public
 router.get('/stats/overview', async (req, res) => {
   try {
-    const stats = await Donation.getStats();
+    // Get comprehensive stats for admin dashboard
+    const comprehensiveStats = await Donation.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalDonations: { $sum: 1 },
+          totalAmount: { $sum: '$amount' },
+          completedDonations: {
+            $sum: { $cond: [{ $eq: ['$paymentStatus', 'completed'] }, 1, 0] }
+          },
+          completedAmount: {
+            $sum: { $cond: [{ $eq: ['$paymentStatus', 'completed'] }, '$amount', 0] }
+          },
+          pendingDonations: {
+            $sum: { $cond: [{ $eq: ['$paymentStatus', 'pending'] }, 1, 0] }
+          },
+          failedDonations: {
+            $sum: { $cond: [{ $eq: ['$paymentStatus', 'failed'] }, 1, 0] }
+          }
+        }
+      }
+    ]);
+
+    // Get monthly revenue (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const monthlyStats = await Donation.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: thirtyDaysAgo },
+          paymentStatus: 'completed'
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          monthlyRevenue: { $sum: '$amount' },
+          monthlyDonations: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const stats = comprehensiveStats[0] || {
+      totalDonations: 0,
+      totalAmount: 0,
+      completedDonations: 0,
+      completedAmount: 0,
+      pendingDonations: 0,
+      failedDonations: 0
+    };
+
+    const monthly = monthlyStats[0] || {
+      monthlyRevenue: 0,
+      monthlyDonations: 0
+    };
     
     // Get recent donations
     const recentDonations = await Donation.find({ paymentStatus: 'completed' })
@@ -226,7 +324,12 @@ router.get('/stats/overview', async (req, res) => {
     });
 
     res.json({
-      stats,
+      stats: {
+        ...stats,
+        monthlyRevenue: monthly.monthlyRevenue,
+        monthlyDonations: monthly.monthlyDonations,
+        avgDonation: stats.totalDonations > 0 ? stats.totalAmount / stats.totalDonations : 0
+      },
       recentDonations,
       topPrograms: topProgramsWithDetails
     });

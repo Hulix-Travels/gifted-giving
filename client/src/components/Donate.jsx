@@ -105,6 +105,29 @@ export default function Donate() {
     }));
   };
 
+  // Calculate impact based on donation amount
+  const calculateImpact = (amount) => {
+    if (!selectedProgram || !amount) return {};
+    
+    const program = programs.find(p => p._id === selectedProgram);
+    if (!program || !program.impactPerDollar) return {};
+    
+    const impact = program.impactPerDollar;
+    return {
+      children: Math.floor(amount * (impact.children || 0)),
+      communities: Math.floor(amount * (impact.communities || 0)),
+      schools: Math.floor(amount * (impact.schools || 0)),
+      meals: Math.floor(amount * (impact.meals || 0)),
+      checkups: Math.floor(amount * (impact.checkups || 0))
+    };
+  };
+
+  // Get current impact for display
+  const getCurrentImpact = () => {
+    const amount = customAmount ? parseFloat(customAmount) : selectedAmount;
+    return calculateImpact(amount);
+  };
+
   const renderCategoryIcon = (category) => {
     switch (category) {
       case 'education':
@@ -187,9 +210,12 @@ export default function Donate() {
         
         setSnackbar({ 
           open: true, 
-          message: 'Thank you for your donation! You will receive a confirmation email shortly.', 
+          message: 'Donation processed successfully! Thank you for your generosity.', 
           severity: 'success' 
         });
+
+        // Update program metrics
+        await updateProgramMetrics(selectedProgram, amount);
 
         // Reset form
         setCustomAmount('');
@@ -218,6 +244,12 @@ export default function Donate() {
       severity: 'success' 
     });
     
+    // Update program metrics
+    const amount = customAmount ? parseFloat(customAmount) : selectedAmount;
+    if (selectedProgram) {
+      updateProgramMetrics(selectedProgram, amount);
+    }
+
     // Reset form
     setCustomAmount('');
     setMessage('');
@@ -236,6 +268,50 @@ export default function Donate() {
 
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false });
+  };
+
+  // Update program metrics after donation
+  const updateProgramMetrics = async (programId, donationAmount) => {
+    try {
+      const program = programs.find(p => p._id === programId);
+      if (!program || !program.impactPerDollar) return;
+
+      const impact = calculateImpact(donationAmount);
+      
+      // Calculate new metrics
+      const newMetrics = {
+        childrenHelped: (program.impactMetrics?.childrenHelped || 0) + impact.children,
+        communitiesReached: (program.impactMetrics?.communitiesReached || 0) + impact.communities,
+        schoolsBuilt: (program.impactMetrics?.schoolsBuilt || 0) + impact.schools,
+        mealsProvided: (program.impactMetrics?.mealsProvided || 0) + impact.meals,
+        medicalCheckups: (program.impactMetrics?.medicalCheckups || 0) + impact.checkups
+      };
+
+      // Update current amount
+      const newCurrentAmount = (program.currentAmount || 0) + donationAmount;
+
+      // Send update to backend
+      await programsAPI.updateMetrics(programId, {
+        currentAmount: newCurrentAmount,
+        impactMetrics: newMetrics
+      });
+
+      // Update local state
+      setPrograms(prevPrograms => 
+        prevPrograms.map(p => 
+          p._id === programId 
+            ? { 
+                ...p, 
+                currentAmount: newCurrentAmount,
+                impactMetrics: newMetrics
+              }
+            : p
+        )
+      );
+
+    } catch (error) {
+      console.error('Error updating program metrics:', error);
+    }
   };
 
   const selectedProgramData = programs.find(p => p._id === selectedProgram);
@@ -418,6 +494,94 @@ export default function Donate() {
                     }}
                     sx={{ mb: 3 }}
                   />
+                  
+                  {/* Impact Display */}
+                  {selectedProgram && (
+                    <Box sx={{ mb: 3, p: 2, bgcolor: 'rgba(0, 255, 140, 0.05)', borderRadius: 2, border: '1px solid rgba(0, 255, 140, 0.2)' }}>
+                      <Typography variant="h6" sx={{ mb: 2, color: 'var(--primary-green)', fontWeight: 600 }}>
+                        Your Impact
+                      </Typography>
+                      <Grid container spacing={1}>
+                        {(() => {
+                          const impact = getCurrentImpact();
+                          const impactItems = [];
+                          
+                          if (impact.children > 0) {
+                            impactItems.push(
+                              <Grid item xs={6} key="children">
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Box sx={{ color: '#4CAF50', fontSize: '1.2rem' }}>👶</Box>
+                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                    {impact.children} children
+                                  </Typography>
+                                </Box>
+                              </Grid>
+                            );
+                          }
+                          
+                          if (impact.communities > 0) {
+                            impactItems.push(
+                              <Grid item xs={6} key="communities">
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Box sx={{ color: '#2196F3', fontSize: '1.2rem' }}>🏘️</Box>
+                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                    {impact.communities} communities
+                                  </Typography>
+                                </Box>
+                              </Grid>
+                            );
+                          }
+                          
+                          if (impact.schools > 0) {
+                            impactItems.push(
+                              <Grid item xs={6} key="schools">
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Box sx={{ color: '#FF9800', fontSize: '1.2rem' }}>🏫</Box>
+                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                    {impact.schools} schools
+                                  </Typography>
+                                </Box>
+                              </Grid>
+                            );
+                          }
+                          
+                          if (impact.meals > 0) {
+                            impactItems.push(
+                              <Grid item xs={6} key="meals">
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Box sx={{ color: '#FF5722', fontSize: '1.2rem' }}>🍽️</Box>
+                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                    {impact.meals} meals
+                                  </Typography>
+                                </Box>
+                              </Grid>
+                            );
+                          }
+                          
+                          if (impact.checkups > 0) {
+                            impactItems.push(
+                              <Grid item xs={6} key="checkups">
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Box sx={{ color: '#9C27B0', fontSize: '1.2rem' }}>🏥</Box>
+                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                    {impact.checkups} checkups
+                                  </Typography>
+                                </Box>
+                              </Grid>
+                            );
+                          }
+                          
+                          return impactItems.length > 0 ? impactItems : (
+                            <Grid item xs={12}>
+                              <Typography variant="body2" color="text.secondary">
+                                Impact will be calculated based on your donation amount
+                              </Typography>
+                            </Grid>
+                          );
+                        })()}
+                      </Grid>
+                    </Box>
+                  )}
                 </>
               )}
             </Card>

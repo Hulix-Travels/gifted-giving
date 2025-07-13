@@ -1,36 +1,29 @@
 import React from 'react';
-import { CssBaseline, Box } from '@mui/material';
-import { AuthProvider } from './contexts/AuthContext';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Header from './components/Header';
-import Hero from './components/Hero';
-import About from './components/About';
-import Programs from './components/Programs';
-import Testimonials from './components/Testimonials';
-import Volunteer from './components/Volunteer';
-import Donate from './components/Donate';
 import Footer from './components/Footer';
+import Home from './components/Home';
+import AdminDashboard from './components/AdminDashboard';
+
+function AdminRoute({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return null; // or a spinner
+  if (!user || user.role !== 'admin') return <Navigate to="/" />;
+  return children;
+}
 
 function App() {
   return (
     <AuthProvider>
-      <CssBaseline />
-      <Box sx={{ 
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        backgroundColor: 'var(--white)'
-      }}>
+      <Router>
         <Header />
-        <Box component="main" sx={{ flex: 1 }}>
-          <Hero />
-          <About />
-          <Programs />
-          <Testimonials />
-          <Volunteer />
-          <Donate />
-        </Box>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+        </Routes>
         <Footer />
-      </Box>
+      </Router>
     </AuthProvider>
   );
 }

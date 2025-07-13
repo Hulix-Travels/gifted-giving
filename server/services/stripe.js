@@ -159,6 +159,7 @@ class StripeService {
       
       // Update donation status in database
       const Donation = require('../models/Donation');
+      const Program = require('../models/Program');
       
       const donation = await Donation.findOneAndUpdate(
         { stripePaymentIntentId: paymentIntent.id },
@@ -174,8 +175,14 @@ class StripeService {
         console.log(`✅ Payment completed for donation: ${donation._id}`);
         console.log(`💰 Amount: ${donation.amount} ${donation.currency}`);
         
+        // Update program current amount
+        await Program.findByIdAndUpdate(donation.program, {
+          $inc: { currentAmount: donation.amount }
+        });
+        
+        console.log(`✅ Updated program current amount for donation ${donation._id}`);
+        
         // TODO: Send confirmation email
-        // TODO: Update program statistics
         // TODO: Send notification to admin
       } else {
         console.warn(`⚠️ No donation found for payment intent: ${paymentIntent.id}`);

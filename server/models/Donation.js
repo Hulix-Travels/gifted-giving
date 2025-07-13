@@ -162,6 +162,59 @@ donationSchema.pre('save', async function(next) {
   next();
 });
 
+// Post-save middleware to handle status updates
+donationSchema.post('save', async function(doc) {
+  // Only handle status changes for existing documents
+  if (!this.isNew && this.isModified('paymentStatus')) {
+    try {
+      const User = mongoose.model('User');
+      const Program = mongoose.model('Program');
+      
+      // If status changed to completed, update stats
+      if (doc.paymentStatus === 'completed') {
+        // Update user donation stats only if donor exists (not anonymous)
+        if (doc.donor) {
+          await User.findByIdAndUpdate(doc.donor, {
+            $inc: { 
+              totalDonated: doc.amount,
+              donationCount: 1
+            },
+            lastDonationDate: new Date()
+          });
+        }
+        
+        // Update program current amount
+        await Program.findByIdAndUpdate(doc.program, {
+          $inc: { currentAmount: doc.amount }
+        });
+        
+        console.log(`✅ Updated program current amount for donation ${doc._id}`);
+      }
+      // If status changed from completed to something else, reverse the stats
+      else if (this._original && this._original.paymentStatus === 'completed') {
+        // Reverse user donation stats only if donor exists (not anonymous)
+        if (doc.donor) {
+          await User.findByIdAndUpdate(doc.donor, {
+            $inc: { 
+              totalDonated: -doc.amount,
+              donationCount: -1
+            }
+          });
+        }
+        
+        // Reverse program current amount
+        await Program.findByIdAndUpdate(doc.program, {
+          $inc: { currentAmount: -doc.amount }
+        });
+        
+        console.log(`🔄 Reversed program current amount for donation ${doc._id}`);
+      }
+    } catch (error) {
+      console.error('Error updating stats in post-save:', error);
+    }
+  }
+});
+
 // Static method to get donation statistics
 donationSchema.statics.getStats = async function() {
   const stats = await this.aggregate([

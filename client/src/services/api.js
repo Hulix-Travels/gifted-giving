@@ -92,8 +92,21 @@ export const programsAPI = {
     body: JSON.stringify(programData),
   }),
   
+  updateMetrics: (id, metricsData) => apiRequest(`/programs/${id}/metrics`, {
+    method: 'PUT',
+    body: JSON.stringify(metricsData),
+  }),
+  
   delete: (id) => apiRequest(`/programs/${id}`, {
     method: 'DELETE',
+  }),
+  
+  recalculateAmounts: () => apiRequest('/programs/recalculate-amounts', {
+    method: 'POST',
+  }),
+  
+  recalculateAmount: (id) => apiRequest(`/programs/${id}/recalculate-amount`, {
+    method: 'POST',
   }),
 };
 
@@ -107,6 +120,11 @@ export const donationsAPI = {
   getUserDonations: (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
     return apiRequest(`/donations?${queryString}`);
+  },
+  
+  getAllDonations: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/donations/all?${queryString}`);
   },
   
   getById: (id) => apiRequest(`/donations/${id}`),

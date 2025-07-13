@@ -26,8 +26,18 @@ export default function Programs() {
     const fetchPrograms = async () => {
       try {
         setLoading(true);
-        const response = await programsAPI.getAll({ status: 'active', featured: 'true' });
-        setPrograms(response.programs || []);
+        // Fetch both active and upcoming programs separately
+        const [activeResponse, upcomingResponse] = await Promise.all([
+          programsAPI.getAll({ status: 'active', featured: 'true' }),
+          programsAPI.getAll({ status: 'upcoming', featured: 'true' })
+        ]);
+        
+        // Combine the results, prioritizing active programs first
+        const activePrograms = activeResponse.programs || [];
+        const upcomingPrograms = upcomingResponse.programs || [];
+        const combinedPrograms = [...activePrograms, ...upcomingPrograms];
+        
+        setPrograms(combinedPrograms);
       } catch (err) {
         console.error('Error fetching programs:', err);
         setError('Failed to load programs');
@@ -264,8 +274,123 @@ export default function Programs() {
                     </Box>
                   </Box>
                   
+                  {/* Impact Progress Bars */}
+                  {program.targetMetrics && (
+                    <Box sx={{ mb: 3 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        Impact Progress
+                      </Typography>
+                      
+                      {/* Children Progress */}
+                      {program.targetMetrics.childrenToHelp > 0 && (
+                        <Box sx={{ mb: 1 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                            <Typography variant="caption" color="text.secondary">
+                              Children Helped
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {program.impactMetrics?.childrenHelped || 0} / {program.targetMetrics.childrenToHelp}
+                            </Typography>
+                          </Box>
+                          <Box 
+                            sx={{ 
+                              width: '100%', 
+                              height: 4, 
+                              backgroundColor: 'rgba(0,0,0,0.1)',
+                              borderRadius: 2,
+                              overflow: 'hidden'
+                            }}
+                          >
+                            <Box 
+                              sx={{ 
+                                height: '100%', 
+                                backgroundColor: '#4CAF50',
+                                width: `${Math.min(((program.impactMetrics?.childrenHelped || 0) / program.targetMetrics.childrenToHelp) * 100, 100)}%`,
+                                transition: 'width 0.3s ease'
+                              }} 
+                            />
+                          </Box>
+                        </Box>
+                      )}
+                      
+                      {/* Communities Progress */}
+                      {program.targetMetrics.communitiesToReach > 0 && (
+                        <Box sx={{ mb: 1 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                            <Typography variant="caption" color="text.secondary">
+                              Communities Reached
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {program.impactMetrics?.communitiesReached || 0} / {program.targetMetrics.communitiesToReach}
+                            </Typography>
+                          </Box>
+                          <Box 
+                            sx={{ 
+                              width: '100%', 
+                              height: 4, 
+                              backgroundColor: 'rgba(0,0,0,0.1)',
+                              borderRadius: 2,
+                              overflow: 'hidden'
+                            }}
+                          >
+                            <Box 
+                              sx={{ 
+                                height: '100%', 
+                                backgroundColor: '#2196F3',
+                                width: `${Math.min(((program.impactMetrics?.communitiesReached || 0) / program.targetMetrics.communitiesToReach) * 100, 100)}%`,
+                                transition: 'width 0.3s ease'
+                              }} 
+                            />
+                          </Box>
+                        </Box>
+                      )}
+                      
+                      {/* Schools Progress */}
+                      {program.targetMetrics.schoolsToBuild > 0 && (
+                        <Box sx={{ mb: 1 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                            <Typography variant="caption" color="text.secondary">
+                              Schools Built
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {program.impactMetrics?.schoolsBuilt || 0} / {program.targetMetrics.schoolsToBuild}
+                            </Typography>
+                          </Box>
+                          <Box 
+                            sx={{ 
+                              width: '100%', 
+                              height: 4, 
+                              backgroundColor: 'rgba(0,0,0,0.1)',
+                              borderRadius: 2,
+                              overflow: 'hidden'
+                            }}
+                          >
+                            <Box 
+                              sx={{ 
+                                height: '100%', 
+                                backgroundColor: '#FF9800',
+                                width: `${Math.min(((program.impactMetrics?.schoolsBuilt || 0) / program.targetMetrics.schoolsToBuild) * 100, 100)}%`,
+                                transition: 'width 0.3s ease'
+                              }} 
+                            />
+                          </Box>
+                        </Box>
+                      )}
+                    </Box>
+                  )}
+                  
                   {/* Impact and Cost Chips */}
                   <Box sx={{ display: 'flex', gap: 1, mb: 3, flexWrap: 'wrap' }}>
+                    <Chip 
+                      label={program.status === 'upcoming' ? 'Coming Soon' : 'Active'}
+                      size="small"
+                      sx={{
+                        background: program.status === 'upcoming' ? '#FF9800' : 'var(--light-green)',
+                        color: program.status === 'upcoming' ? 'white' : 'var(--primary-green)',
+                        fontWeight: 600,
+                        fontSize: '0.8rem'
+                      }}
+                    />
                     <Chip 
                       label={`${program.impactMetrics?.childrenHelped || 0}+ Children`}
                       size="small"
@@ -294,7 +419,9 @@ export default function Programs() {
                     endIcon={<ArrowForward />}
                     onClick={() => scrollToSection('#donate')}
                     sx={{
-                      background: 'linear-gradient(135deg, var(--accent-green), #00cc6a)',
+                      background: program.status === 'upcoming' 
+                        ? 'linear-gradient(135deg, #FF9800, #F57C00)' 
+                        : 'linear-gradient(135deg, var(--accent-green), #00cc6a)',
                       color: 'var(--primary-green)',
                       fontWeight: 700,
                       borderRadius: 3,
@@ -302,13 +429,15 @@ export default function Programs() {
                       fontSize: '1rem',
                       boxShadow: 'var(--shadow-sm)',
                       '&:hover': { 
-                        background: 'linear-gradient(135deg, #00cc6a, var(--accent-green))',
+                        background: program.status === 'upcoming'
+                          ? 'linear-gradient(135deg, #F57C00, #FF9800)'
+                          : 'linear-gradient(135deg, #00cc6a, var(--accent-green))',
                         transform: 'translateY(-2px)',
                         boxShadow: 'var(--shadow-md)'
                       }
                     }}
                   >
-                    Support {program.name}
+                    {program.status === 'upcoming' ? 'Learn More' : `Support ${program.name}`}
                   </Button>
                 </CardContent>
               </Card>

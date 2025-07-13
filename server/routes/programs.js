@@ -29,6 +29,9 @@ router.get('/', async (req, res) => {
       query.$text = { $search: search };
     }
 
+    console.log('Programs query:', query);
+    console.log('Status filter:', status);
+
     // Build sort object
     const sort = {};
     sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
@@ -39,6 +42,9 @@ router.get('/', async (req, res) => {
       .limit(limit * 1)
       .skip((page - 1) * limit)
       .exec();
+
+    console.log('Found programs:', programs.length);
+    console.log('Program statuses:', programs.map(p => ({ name: p.name, status: p.status })));
 
     const total = await Program.countDocuments(query);
 
@@ -126,8 +132,22 @@ router.post('/', [
       createdBy: req.user.id
     };
 
+    console.log('Received program data:', programData);
+    console.log('Program name:', programData.name);
+
+    // Generate slug as a workaround in case pre-save hook fails
+    if (programData.name) {
+      programData.slug = programData.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+      console.log('Generated slug in route:', programData.slug);
+    }
+
     const program = new Program(programData);
+    console.log('Program instance created, slug:', program.slug);
     await program.save();
+    console.log('Program saved successfully, final slug:', program.slug);
 
     await program.populate('createdBy', 'firstName lastName');
 
@@ -186,6 +206,65 @@ router.put('/:id', [
   } catch (error) {
     console.error('Update program error:', error);
     res.status(500).json({ message: 'Server error during program update' });
+  }
+});
+
+// @route   PUT /api/programs/:id/metrics
+// @desc    Update program metrics (impact and current amounts)
+// @access  Private (Admin only)
+router.put('/:id/metrics', [
+  adminAuth,
+  body('currentAmount').optional().isFloat({ min: 0 }),
+  body('impactMetrics').optional().isObject(),
+  body('impactMetrics.childrenHelped').optional().isInt({ min: 0 }),
+  body('impactMetrics.communitiesReached').optional().isInt({ min: 0 }),
+  body('impactMetrics.schoolsBuilt').optional().isInt({ min: 0 }),
+  body('impactMetrics.mealsProvided').optional().isInt({ min: 0 }),
+  body('impactMetrics.medicalCheckups').optional().isInt({ min: 0 })
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        message: 'Validation failed',
+        errors: errors.array() 
+      });
+    }
+
+    const program = await Program.findById(req.params.id);
+    if (!program) {
+      return res.status(404).json({ message: 'Program not found' });
+    }
+
+    // Update current amount if provided
+    if (req.body.currentAmount !== undefined) {
+      program.currentAmount = req.body.currentAmount;
+    }
+
+    // Update impact metrics if provided
+    if (req.body.impactMetrics) {
+      if (!program.impactMetrics) {
+        program.impactMetrics = {};
+      }
+      
+      Object.keys(req.body.impactMetrics).forEach(key => {
+        if (req.body.impactMetrics[key] !== undefined) {
+          program.impactMetrics[key] = req.body.impactMetrics[key];
+        }
+      });
+    }
+
+    await program.save();
+    await program.populate('createdBy', 'firstName lastName');
+
+    res.json({
+      message: 'Program metrics updated successfully',
+      program
+    });
+
+  } catch (error) {
+    console.error('Update program metrics error:', error);
+    res.status(500).json({ message: 'Server error during metrics update' });
   }
 });
 
@@ -295,6 +374,45 @@ router.get('/stats/overview', async (req, res) => {
   } catch (error) {
     console.error('Get program stats error:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/programs/recalculate-amounts
+// @desc    Recalculate current amounts for all programs based on completed donations
+// @access  Private (Admin only)
+router.post('/recalculate-amounts', adminAuth, async (req, res) => {
+  try {
+    const result = await Program.recalculateCurrentAmounts();
+    
+    res.json({
+      message: 'Program amounts recalculated successfully',
+      ...result
+    });
+
+  } catch (error) {
+    console.error('Recalculate amounts error:', error);
+    res.status(500).json({ message: 'Server error during recalculation' });
+  }
+});
+
+// @route   POST /api/programs/:id/recalculate-amount
+// @desc    Recalculate current amount for a specific program based on completed donations
+// @access  Private (Admin only)
+router.post('/:id/recalculate-amount', adminAuth, async (req, res) => {
+  try {
+    const result = await Program.recalculateCurrentAmount(req.params.id);
+    
+    res.json({
+      message: 'Program amount recalculated successfully',
+      ...result
+    });
+
+  } catch (error) {
+    console.error('Recalculate amount error:', error);
+    if (error.message === 'Program not found') {
+      return res.status(404).json({ message: 'Program not found' });
+    }
+    res.status(500).json({ message: 'Server error during recalculation' });
   }
 });
 

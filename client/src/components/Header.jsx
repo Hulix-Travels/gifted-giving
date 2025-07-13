@@ -17,6 +17,7 @@ import MenuItem from '@mui/material/MenuItem';
 import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../contexts/AuthContext';
 import AuthModal from './AuthModal';
+import { Link } from 'react-router-dom';
 
 const navLinks = [
   { label: 'About', href: '#about' },
@@ -246,10 +247,15 @@ export default function Header() {
               
               {isAuthenticated ? (
                 <>
+                  {/* Debug info */}
+                  <Box sx={{ mr: 2, fontSize: '12px', color: '#666' }}>
+                    Role: {user?.role || 'No role'}
+                  </Box>
                   {user?.role === 'admin' && (
                     <Button 
                       variant="contained" 
-                      href="#admin-dashboard"
+                      component={Link}
+                      to="/admin"
                       sx={{ 
                         background: '#ff9800',
                         color: 'white',
