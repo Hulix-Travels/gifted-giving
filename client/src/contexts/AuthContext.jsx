@@ -26,7 +26,6 @@ export const AuthProvider = ({ children }) => {
           setUser(data.user);
         })
         .catch(err => {
-          console.error('Failed to get user profile:', err);
           localStorage.removeItem(AUTH_STORAGE_KEY);
         })
         .finally(() => {

@@ -1,6 +1,8 @@
 import React from 'react';
 import { Box, Typography, Button, Stack, Container } from '@mui/material';
 import { VolunteerActivism, School, Favorite } from '@mui/icons-material';
+import useLiveStats from '../hooks/useLiveStats';
+import formatShortNumber from '../utils/formatShortNumber';
 
 export default function Hero() {
   const scrollToSection = (href) => {
@@ -23,6 +25,8 @@ export default function Hero() {
     }
   };
 
+  const { stats: liveStats, loading: statsLoading } = useLiveStats();
+
   return (
     <Box
       sx={{
@@ -30,7 +34,7 @@ export default function Hero() {
         display: 'flex',
         alignItems: 'center',
         position: 'relative',
-        background: `linear-gradient(135deg, rgba(1,55,31,0.9), rgba(0,36,17,0.95)), url(https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80)`,
+        background: `linear-gradient(135deg, rgba(1,55,31,0.5), rgba(0,36,17,0.5)), url(https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80)`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundAttachment: 'fixed',
@@ -164,9 +168,13 @@ export default function Hero() {
               flexWrap: 'wrap'
             }}
           >
-            {[
-              { icon: 'volunteer_activism', number: '10K+', label: 'Children Helped' },
-              { icon: 'school', number: '50+', label: 'Communities' },
+            {statsLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 80 }}>
+                <span className="MuiCircularProgress-root MuiCircularProgress-colorPrimary" style={{ width: 40, height: 40, color: 'var(--accent-green)' }} />
+              </Box>
+            ) : ([
+              { icon: 'volunteer_activism', number: formatShortNumber(liveStats?.childrenHelped), label: 'Children Helped' },
+              { icon: 'school', number: formatShortNumber(liveStats?.communities), label: 'Communities' },
               { icon: 'favorite', number: '95%', label: 'Success Rate' }
             ].map((stat, index) => (
               <Box 
@@ -204,7 +212,7 @@ export default function Hero() {
                   {stat.label}
                 </Typography>
               </Box>
-            ))}
+            )))}
           </Box>
         </Box>
       </Container>

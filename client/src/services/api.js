@@ -36,7 +36,6 @@ const apiRequest = async (endpoint, options = {}) => {
 
     return data;
   } catch (error) {
-    console.error('API Error:', error);
     throw error;
   }
 };

@@ -525,14 +525,6 @@ export default function AdminDashboard() {
         <Typography variant="body1" sx={{ mb: 2 }}>
           You need administrator privileges to access this dashboard.
         </Typography>
-        {/* Debug information */}
-        <Box sx={{ mt: 4, p: 2, background: '#f5f5f5', borderRadius: 2, textAlign: 'left' }}>
-          <Typography variant="h6" sx={{ mb: 1 }}>Debug Info:</Typography>
-          <Typography variant="body2">User: {user ? 'Logged in' : 'Not logged in'}</Typography>
-          <Typography variant="body2">Role: {user?.role || 'No role'}</Typography>
-          <Typography variant="body2">Email: {user?.email || 'No email'}</Typography>
-          <Typography variant="body2">User ID: {user?.id || 'No ID'}</Typography>
-        </Box>
       </Box>
     );
   }
@@ -691,7 +683,6 @@ export default function AdminDashboard() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {console.log('Rendering donations:', donations)}
                   {donations.map((donation) => (
                     <TableRow key={donation._id}>
                       <TableCell>

@@ -42,6 +42,8 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { donationsAPI, programsAPI } from '../services/api';
 import StripePayment from './StripePayment';
+import useLiveStats from '../hooks/useLiveStats';
+import formatShortNumber from '../utils/formatShortNumber';
 
 const paymentMethods = [
   { value: 'stripe', label: 'Credit/Debit Card', icon: 'credit_card' },
@@ -64,6 +66,7 @@ export default function Donate() {
   const [programsLoading, setProgramsLoading] = useState(true);
   const [_showStripePayment, setShowStripePayment] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const { stats: liveStats, loading: statsLoading } = useLiveStats();
 
   // Fetch programs on component mount
   useEffect(() => {
@@ -76,7 +79,6 @@ export default function Donate() {
           setSelectedProgram(response.programs[0]._id);
         }
       } catch (error) {
-        console.error('Error fetching programs:', error);
         setSnackbar({ 
           open: true, 
           message: 'Failed to load programs. Please refresh the page.', 
@@ -229,7 +231,6 @@ export default function Donate() {
         setRecurring(false);
 
       } catch (error) {
-        console.error('Donation error:', error);
         setSnackbar({ 
           open: true, 
           message: error.response?.data?.message || 'Donation failed. Please try again.', 
@@ -320,7 +321,7 @@ export default function Donate() {
       );
 
     } catch (error) {
-      console.error('Error updating program metrics:', error);
+      // console.error('Error updating program metrics:', error);
     }
   };
 
@@ -354,34 +355,40 @@ export default function Donate() {
           </Typography>
 
           {/* Impact Stats */}
-          <Grid container spacing={3} justifyContent="center" sx={{ mb: 6 }}>
-            {[
-              { number: '10,000+', label: 'Children Helped', icon: 'people' },
-              { number: '$500K+', label: 'Funds Raised', icon: 'trending_up' },
-              { number: '50+', label: 'Communities', icon: 'star' },
-              { number: '100%', label: 'Transparency', icon: 'receipt' }
-            ].map((stat, index) => (
-              <Grid xs={6} md={3} key={index}>
-                <Paper elevation={2} sx={{ 
-                  p: 3, 
-                  textAlign: 'center',
-                  borderRadius: 3,
-                  background: 'rgba(255,255,255,0.9)',
-                  backdropFilter: 'blur(10px)'
-                }}>
-                  <Box sx={{ color: 'var(--primary-green)', mb: 1 }}>
-                    {renderImpactIcon(stat.icon)}
-                  </Box>
-                  <Typography variant="h4" sx={{ fontWeight: 700, color: 'var(--primary-green)', mb: 1 }}>
-                    {stat.number}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: '#666' }}>
-                    {stat.label}
-                  </Typography>
-                </Paper>
-              </Grid>
-            ))}
-          </Grid>
+          {statsLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+              <CircularProgress size={40} sx={{ color: 'var(--primary-green)' }} />
+            </Box>
+          ) : (
+            <Grid container spacing={3} justifyContent="center" sx={{ mb: 6 }}>
+              {[
+                { number: liveStats ? formatShortNumber(liveStats.childrenHelped) : '—', label: 'Children Helped', icon: 'people' },
+                { number: liveStats ? `$${formatShortNumber(liveStats.funds)}` : '—', label: 'Funds Raised', icon: 'trending_up' },
+                { number: liveStats ? formatShortNumber(liveStats.communities) : '—', label: 'Communities', icon: 'star' },
+                { number: '100%', label: 'Transparency', icon: 'receipt' }
+              ].map((stat, index) => (
+                <Grid xs={6} md={3} key={index}>
+                  <Paper elevation={2} sx={{ 
+                    p: 3, 
+                    textAlign: 'center',
+                    borderRadius: 3,
+                    background: 'rgba(255,255,255,0.9)',
+                    backdropFilter: 'blur(10px)'
+                  }}>
+                    <Box sx={{ color: 'var(--primary-green)', mb: 1 }}>
+                      {renderImpactIcon(stat.icon)}
+                    </Box>
+                    <Typography variant="h4" sx={{ fontWeight: 700, color: 'var(--primary-green)', mb: 1 }}>
+                      {stat.number}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#666' }}>
+                      {stat.label}
+                    </Typography>
+                  </Paper>
+                </Grid>
+              ))}
+            </Grid>
+          )}
         </Box>
 
         <Grid container spacing={6}>

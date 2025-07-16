@@ -39,7 +39,6 @@ export default function Programs() {
         
         setPrograms(combinedPrograms);
       } catch (err) {
-        console.error('Error fetching programs:', err);
         setError('Failed to load programs');
       } finally {
         setLoading(false);

@@ -72,14 +72,6 @@ function CheckoutForm({ amount, currency = 'usd', onSuccess, onError, donationDa
     phone: ''
   });
 
-  // Debug logging
-  useEffect(() => {
-    console.log('Stripe loaded:', !!stripe);
-    console.log('Elements loaded:', !!elements);
-    console.log('Amount:', amount);
-    console.log('Currency:', currency);
-  }, [stripe, elements, amount, currency]);
-
   // Check if all required fields are complete
   const isFormComplete = () => {
     return (
@@ -93,7 +85,6 @@ function CheckoutForm({ amount, currency = 'usd', onSuccess, onError, donationDa
   };
 
   const handleCardChange = (field) => (event) => {
-    console.log(`Card ${field} changed:`, event.complete);
     setCardComplete(prev => ({
       ...prev,
       [field]: event.complete

@@ -129,7 +129,6 @@ export default function UserDashboard() {
       });
 
     } catch (error) {
-      console.error('Error loading user data:', error);
       setSnackbar({ open: true, message: 'Failed to load user data', severity: 'error' });
     } finally {
       setLoading(false);
@@ -154,7 +153,6 @@ export default function UserDashboard() {
       setSnackbar({ open: true, message: 'Profile updated successfully', severity: 'success' });
 
     } catch (error) {
-      console.error('Error updating profile:', error);
       setSnackbar({ open: true, message: 'Failed to update profile', severity: 'error' });
     } finally {
       setLoading(false);

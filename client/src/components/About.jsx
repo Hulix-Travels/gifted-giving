@@ -3,49 +3,8 @@ import { Box, Container, Typography, Grid, Card, CardContent, Button, Chip, Circ
 import { School, Favorite, People, Public, TrendingUp, Star } from '@mui/icons-material';
 import { programsAPI } from '../services/api';
 import { volunteersAPI } from '../services/api';
-
-function useLiveStats() {
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchStats() {
-      setLoading(true);
-      try {
-        // Fetch all programs
-        const programsRes = await programsAPI.getAll({});
-        const programs = programsRes.programs || [];
-        // Aggregate children helped, communities, funds, countries
-        let childrenHelped = 0;
-        let communities = 0;
-        let funds = 0;
-        const countriesSet = new Set();
-        programs.forEach(p => {
-          childrenHelped += p.impactMetrics?.childrenHelped || 0;
-          communities += p.impactMetrics?.communitiesReached || 0;
-          funds += p.currentAmount || 0;
-          if (p.location?.country) countriesSet.add(p.location.country);
-        });
-        // Fetch volunteers
-        const volunteersRes = await volunteersAPI.getStats();
-        const volunteers = volunteersRes.overall?.totalApplications || 0;
-        setStats({
-          childrenHelped,
-          communities,
-          funds,
-          countries: countriesSet.size,
-          volunteers
-        });
-      } catch (e) {
-        setStats(null);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchStats();
-  }, []);
-  return { stats, loading };
-}
+import useLiveStats from '../hooks/useLiveStats';
+import formatShortNumber from '../utils/formatShortNumber';
 
 export default function About() {
   const renderAboutIcon = (iconType) => {
@@ -67,7 +26,7 @@ export default function About() {
 
   const liveStats = [
     {
-      number: stats ? stats.childrenHelped.toLocaleString() : '—',
+      number: stats ? formatShortNumber(stats.childrenHelped) : '—',
       label: 'Children Helped',
       description: 'Direct impact on children\'s lives through our programs',
       icon: 'favorite',
@@ -77,7 +36,7 @@ export default function About() {
       category: 'Education & Health'
     },
     {
-      number: stats ? stats.communities.toLocaleString() : '—',
+      number: stats ? formatShortNumber(stats.communities) : '—',
       label: 'Communities',
       description: 'Villages and neighborhoods transformed',
       icon: 'public',
@@ -87,7 +46,7 @@ export default function About() {
       category: 'Global Reach'
     },
     {
-      number: stats ? stats.volunteers.toLocaleString() : '—',
+      number: stats ? formatShortNumber(stats.volunteers) : '—',
       label: 'Volunteers',
       description: 'Dedicated individuals making change happen',
       icon: 'people',
@@ -97,7 +56,7 @@ export default function About() {
       category: 'Community Support'
     },
     {
-      number: stats ? stats.countries.toLocaleString() : '—',
+      number: stats ? formatShortNumber(stats.countries) : '—',
       label: 'Countries',
       description: 'International presence and impact',
       icon: 'school',
@@ -107,7 +66,7 @@ export default function About() {
       category: 'Global Expansion'
     },
     {
-      number: stats ? `$${stats.funds.toLocaleString()}` : '—',
+      number: stats ? `$${formatShortNumber(stats.funds)}` : '—',
       label: 'Funds Collected',
       description: 'Total funds raised for all programs',
       icon: 'trending_up',
