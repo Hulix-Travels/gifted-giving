@@ -1,8 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Box, Container, Typography, Grid, Card, CardContent, Button, Chip, CircularProgress } from '@mui/material';
 import { School, Favorite, People, Public, TrendingUp, Star } from '@mui/icons-material';
-import { programsAPI } from '../services/api';
-import { volunteersAPI } from '../services/api';
 import useLiveStats from '../hooks/useLiveStats';
 import formatShortNumber from '../utils/formatShortNumber';
 

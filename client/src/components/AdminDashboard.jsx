@@ -110,7 +110,6 @@ export default function AdminDashboard() {
   const [donations, setDonations] = useState([]);
   const [donationsPage, setDonationsPage] = useState(1);
   const [donationsTotalPages, setDonationsTotalPages] = useState(1);
-  const [donationsLimit, setDonationsLimit] = useState(20);
   const [donationsTotal, setDonationsTotal] = useState(0);
   const [volunteers, setVolunteers] = useState([]);
   const [programs, setPrograms] = useState([]);

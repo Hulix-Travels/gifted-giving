@@ -273,9 +273,9 @@ export default function Volunteer() {
               const fieldName = err.param ? err.param.charAt(0).toUpperCase() + err.param.slice(1) : 'Field';
               const message = err.msg || err.message || 'Invalid value';
               return `${fieldName}: ${message}`;
-                         } catch (_e) {
-               return 'Invalid field value';
-             }
+            } catch {
+              return 'Invalid field value';
+            }
           }).join(', ');
           errorMessage = `Please fix these issues: ${errorMessages}`;
         } else {

@@ -34,7 +34,7 @@ export default function useLiveStats() {
           countries: countriesSet.size,
           volunteers
         });
-      } catch (e) {
+      } catch {
         setStats(null);
       } finally {
         setLoading(false);
