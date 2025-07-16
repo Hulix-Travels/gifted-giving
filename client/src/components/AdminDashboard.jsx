@@ -108,6 +108,10 @@ export default function AdminDashboard() {
 
   // Data States
   const [donations, setDonations] = useState([]);
+  const [donationsPage, setDonationsPage] = useState(1);
+  const [donationsTotalPages, setDonationsTotalPages] = useState(1);
+  const [donationsLimit, setDonationsLimit] = useState(20);
+  const [donationsTotal, setDonationsTotal] = useState(0);
   const [volunteers, setVolunteers] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [programStats, setProgramStats] = useState({
@@ -133,11 +137,12 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (user && user.role === 'admin') {
-      loadDashboardData();
+      loadDashboardData(donationsPage);
     }
-  }, [user]);
+    // eslint-disable-next-line
+  }, [user, donationsPage]);
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = async (page = donationsPage) => {
     try {
       setLoading(true);
       
@@ -169,15 +174,14 @@ export default function AdminDashboard() {
 
       // Load data
       const [donationsData, volunteersData, programsData] = await Promise.all([
-        donationsAPI.getAllDonations({ limit: 50 }),
+        donationsAPI.getAllDonations({ page, limit: donationsLimit }),
         volunteersAPI.getApplications({ limit: 50 }),
         programsAPI.getAll({ limit: 50, status: '' }) // Load all programs regardless of status
       ]);
 
-      console.log('Loaded programs data:', programsData);
-      console.log('Programs array:', programsData.programs);
-
       setDonations(donationsData.donations || []);
+      setDonationsTotalPages(donationsData.totalPages || 1);
+      setDonationsTotal(donationsData.totalDonations || 0);
       setVolunteers(volunteersData.applications || []);
       setPrograms(programsData.programs || []);
 
@@ -279,6 +283,7 @@ export default function AdminDashboard() {
         featured: false,
         tags: [],
         gallery: [],
+        // Always reset impactMetrics to zero on save
         impactMetrics: {
           childrenHelped: 0,
           communitiesReached: 0,
@@ -405,7 +410,8 @@ export default function AdminDashboard() {
         featured: payload.featured || false,
         tags: payload.tags || [],
         gallery: payload.gallery || [],
-        impactMetrics: payload.impactMetrics || {
+        // Always reset impactMetrics to zero on save
+        impactMetrics: {
           childrenHelped: 0,
           communitiesReached: 0,
           schoolsBuilt: 0,
@@ -732,6 +738,28 @@ export default function AdminDashboard() {
                 </TableBody>
               </Table>
             </TableContainer>
+            {/* Pagination Controls for Donations */}
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mt: 2, gap: 2 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => setDonationsPage((prev) => Math.max(prev - 1, 1))}
+                disabled={donationsPage === 1}
+              >
+                Previous
+              </Button>
+              <Typography variant="body2">
+                Page {donationsPage} of {donationsTotalPages} ({donationsTotal} donations)
+              </Typography>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => setDonationsPage((prev) => Math.min(prev + 1, donationsTotalPages))}
+                disabled={donationsPage === donationsTotalPages}
+              >
+                Next
+              </Button>
+            </Box>
           </TabPanel>
 
           {/* Volunteers Tab */}
@@ -1731,6 +1759,36 @@ export default function AdminDashboard() {
                         Format JSON
                       </Button>
                     )}
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      disabled={dialogType === 'view'}
+                      sx={{ mb: 2 }}
+                      onClick={() => {
+                        const ta = parseFloat(editingData.targetAmount) || 1;
+                        setEditingData({
+                          ...editingData,
+                          impactPerDollar: {
+                            children: (editingData.targetMetrics?.childrenToHelp || 0) / ta,
+                            communities: (editingData.targetMetrics?.communitiesToReach || 0) / ta,
+                            schools: (editingData.targetMetrics?.schoolsToBuild || 0) / ta,
+                            meals: (editingData.targetMetrics?.mealsToProvide || 0) / ta,
+                            checkups: (editingData.targetMetrics?.medicalCheckupsToProvide || 0) / ta,
+                          },
+                          impactMetrics: {
+                            childrenHelped: editingData.targetMetrics?.childrenToHelp || 0,
+                            communitiesReached: editingData.targetMetrics?.communitiesToReach || 0,
+                            schoolsBuilt: editingData.targetMetrics?.schoolsToBuild || 0,
+                            mealsProvided: editingData.targetMetrics?.mealsToProvide || 0,
+                            medicalCheckups: editingData.targetMetrics?.medicalCheckupsToProvide || 0
+                          }
+                        });
+                      }}
+                    >
+                      Auto-calculate Impact Per Dollar
+                    </Button>
                   </Grid>
                 </Grid>
               </Box>

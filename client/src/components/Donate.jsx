@@ -214,6 +214,11 @@ export default function Donate() {
           severity: 'success' 
         });
 
+        // Refetch programs after donation
+        if (typeof window !== 'undefined' && window.dispatchEvent) {
+          window.dispatchEvent(new Event('programs:refresh'));
+        }
+
         // Update program metrics
         await updateProgramMetrics(selectedProgram, amount);
 
@@ -244,6 +249,11 @@ export default function Donate() {
       severity: 'success' 
     });
     
+    // Refetch programs after donation
+    if (typeof window !== 'undefined' && window.dispatchEvent) {
+      window.dispatchEvent(new Event('programs:refresh'));
+    }
+
     // Update program metrics
     const amount = customAmount ? parseFloat(customAmount) : selectedAmount;
     if (selectedProgram) {

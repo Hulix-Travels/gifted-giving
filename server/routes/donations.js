@@ -5,6 +5,31 @@ const Program = require('../models/Program');
 const { auth, optionalAuth } = require('../middleware/auth');
 const router = express.Router();
 
+const NodeCache = require('node-cache');
+const statsCache = new NodeCache({ stdTTL: 20 }); // 20 seconds TTL
+
+// Utility to deeply convert Mongoose docs to plain JS objects
+function deepToObject(doc) {
+  if (Array.isArray(doc)) {
+    return doc.map(deepToObject);
+  }
+  if (doc && typeof doc.toObject === 'function') {
+    const plain = doc.toObject();
+    for (const key in plain) {
+      plain[key] = deepToObject(plain[key]);
+    }
+    return plain;
+  }
+  if (doc && typeof doc === 'object') {
+    const plain = {};
+    for (const key in doc) {
+      plain[key] = deepToObject(doc[key]);
+    }
+    return plain;
+  }
+  return doc;
+}
+
 // @route   POST /api/donations
 // @desc    Create a new donation
 // @access  Private
@@ -220,6 +245,12 @@ router.put('/:id/status', auth, async (req, res) => {
     donation.paymentStatus = status;
     await donation.save();
 
+    // Invalidate stats cache if status is completed
+    if (status === 'completed') {
+      statsCache.del('donations_stats_overview');
+      statsCache.del('programs_stats_overview');
+    }
+
     res.json({
       message: 'Donation status updated successfully',
       donation: {
@@ -240,6 +271,12 @@ router.put('/:id/status', auth, async (req, res) => {
 // @access  Public
 router.get('/stats/overview', async (req, res) => {
   try {
+    // Check cache first
+    const cached = statsCache.get('donations_stats_overview');
+    if (cached) {
+      return res.json(cached);
+    }
+
     // Get comprehensive stats for admin dashboard
     const comprehensiveStats = await Donation.aggregate([
       {
@@ -301,7 +338,8 @@ router.get('/stats/overview', async (req, res) => {
     const recentDonations = await Donation.find({ paymentStatus: 'completed' })
       .populate('program', 'name category')
       .sort({ createdAt: -1 })
-      .limit(5);
+      .limit(5)
+      .lean(); // Ensure plain JS objects for caching
 
     // Get top programs by donations
     const topPrograms = await Donation.aggregate([
@@ -318,21 +356,30 @@ router.get('/stats/overview', async (req, res) => {
     ]);
 
     // Populate program details for top programs
-    const topProgramsWithDetails = await Program.populate(topPrograms, {
+    let topProgramsWithDetails = await Program.populate(topPrograms, {
       path: '_id',
       select: 'name category image'
     });
+    // Ensure plain JS objects for caching
+    if (Array.isArray(topProgramsWithDetails)) {
+      topProgramsWithDetails = topProgramsWithDetails.map(item => (item && typeof item.toObject === 'function' ? item.toObject() : item));
+    }
 
-    res.json({
+    const response = {
       stats: {
         ...stats,
         monthlyRevenue: monthly.monthlyRevenue,
         monthlyDonations: monthly.monthlyDonations,
         avgDonation: stats.totalDonations > 0 ? stats.totalAmount / stats.totalDonations : 0
       },
-      recentDonations,
-      topPrograms: topProgramsWithDetails
-    });
+      recentDonations: deepToObject(recentDonations),
+      topPrograms: deepToObject(topProgramsWithDetails)
+    };
+
+    // Cache the result
+    statsCache.set('donations_stats_overview', response);
+
+    res.json(response);
 
   } catch (error) {
     console.error('Get donation stats error:', error);

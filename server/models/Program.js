@@ -71,6 +71,50 @@ const programSchema = new mongoose.Schema({
       default: 0
     }
   },
+  targetMetrics: {
+    childrenToHelp: {
+      type: Number,
+      default: 0
+    },
+    communitiesToReach: {
+      type: Number,
+      default: 0
+    },
+    schoolsToBuild: {
+      type: Number,
+      default: 0
+    },
+    mealsToProvide: {
+      type: Number,
+      default: 0
+    },
+    medicalCheckupsToProvide: {
+      type: Number,
+      default: 0
+    }
+  },
+  impactPerDollar: {
+    children: {
+      type: Number,
+      default: 0
+    },
+    communities: {
+      type: Number,
+      default: 0
+    },
+    schools: {
+      type: Number,
+      default: 0
+    },
+    meals: {
+      type: Number,
+      default: 0
+    },
+    checkups: {
+      type: Number,
+      default: 0
+    }
+  },
   location: {
     country: {
       type: String,

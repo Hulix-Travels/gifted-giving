@@ -17,6 +17,12 @@ const apiRequest = async (endpoint, options = {}) => {
 
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      // Not JSON, probably an error page or server error
+      const text = await response.text();
+      throw new Error(`Server did not return JSON. Status: ${response.status}. Body: ${text.substring(0, 200)}`);
+    }
     const data = await response.json();
 
     if (!response.ok) {

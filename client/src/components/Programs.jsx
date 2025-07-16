@@ -47,6 +47,17 @@ export default function Programs() {
     };
 
     fetchPrograms();
+
+    // Listen for refresh event
+    const refreshHandler = () => fetchPrograms();
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      window.addEventListener('programs:refresh', refreshHandler);
+    }
+    return () => {
+      if (typeof window !== 'undefined' && window.removeEventListener) {
+        window.removeEventListener('programs:refresh', refreshHandler);
+      }
+    };
   }, []);
 
   const scrollToSection = (href) => {
@@ -412,6 +423,18 @@ export default function Programs() {
                       }}
                     />
                   </Box>
+
+                  {/* New: Display targetMetrics and impactPerDollar */}
+                  {program.targetMetrics && program.impactPerDollar && (
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                        <strong>Goals:</strong> {program.targetMetrics.childrenToHelp} children, {program.targetMetrics.communitiesToReach} communities, {program.targetMetrics.schoolsToBuild} schools
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                        <strong>Impact per $1:</strong> {program.impactPerDollar.children} children, {program.impactPerDollar.communities} communities, {program.impactPerDollar.schools} schools
+                      </Typography>
+                    </Box>
+                  )}
                   
                   <Button 
                     variant="contained" 

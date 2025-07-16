@@ -155,6 +155,26 @@ donationSchema.pre('save', async function(next) {
       await Program.findByIdAndUpdate(this.program, {
         $inc: { currentAmount: this.amount }
       });
+
+      // Update program impact metrics based on impactPerDollar
+      const programDoc = await Program.findById(this.program);
+      if (programDoc && programDoc.impactPerDollar) {
+        const impact = programDoc.impactPerDollar;
+        const children = Math.floor(this.amount * (impact.children || 0));
+        const communities = Math.floor(this.amount * (impact.communities || 0));
+        const schools = Math.floor(this.amount * (impact.schools || 0));
+        const meals = Math.floor(this.amount * (impact.meals || 0));
+        const checkups = Math.floor(this.amount * (impact.checkups || 0));
+        await Program.findByIdAndUpdate(this.program, {
+          $inc: {
+            'impactMetrics.childrenHelped': children,
+            'impactMetrics.communitiesReached': communities,
+            'impactMetrics.schoolsBuilt': schools,
+            'impactMetrics.mealsProvided': meals,
+            'impactMetrics.medicalCheckups': checkups
+          }
+        });
+      }
     } catch (error) {
       console.error('Error updating stats:', error);
     }
@@ -187,6 +207,26 @@ donationSchema.post('save', async function(doc) {
         await Program.findByIdAndUpdate(doc.program, {
           $inc: { currentAmount: doc.amount }
         });
+
+        // Update program impact metrics based on impactPerDollar
+        const programDoc = await Program.findById(doc.program);
+        if (programDoc && programDoc.impactPerDollar) {
+          const impact = programDoc.impactPerDollar;
+          const children = Math.floor(doc.amount * (impact.children || 0));
+          const communities = Math.floor(doc.amount * (impact.communities || 0));
+          const schools = Math.floor(doc.amount * (impact.schools || 0));
+          const meals = Math.floor(doc.amount * (impact.meals || 0));
+          const checkups = Math.floor(doc.amount * (impact.checkups || 0));
+          await Program.findByIdAndUpdate(doc.program, {
+            $inc: {
+              'impactMetrics.childrenHelped': children,
+              'impactMetrics.communitiesReached': communities,
+              'impactMetrics.schoolsBuilt': schools,
+              'impactMetrics.mealsProvided': meals,
+              'impactMetrics.medicalCheckups': checkups
+            }
+          });
+        }
         
         console.log(`✅ Updated program current amount for donation ${doc._id}`);
       }
