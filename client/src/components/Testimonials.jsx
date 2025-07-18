@@ -1,45 +1,60 @@
-import React from 'react';
-import { Box, Container, Typography, Grid, Card, CardContent } from '@mui/material';
+import React, { useEffect, useState } from 'react';
+import { Box, Container, Typography, Card, CardContent, CircularProgress } from '@mui/material';
 import { FormatQuote as FormatQuoteIcon } from '@mui/icons-material';
 
-const testimonials = [
-  {
-    quote: "Because of Gifted Giving, my daughter can now attend school. She dreams of becoming a doctor and helping others just as she's been helped. This program has changed our lives.",
-    author: "Amina",
-    role: "Mother from Kenya"
-  },
-  {
-    quote: "The health kit saved my son's life when he had malaria. We couldn't afford treatment, but Gifted Giving provided everything needed. We're forever grateful for their support.",
-    author: "James",
-    role: "Father from Uganda"
-  },
-  {
-    quote: "Volunteering with Gifted Giving changed my perspective on life. The children's resilience is inspiring. Seeing the direct impact of our work keeps me motivated to do more.",
-    author: "Sarah",
-    role: "Volunteer since 2018"
-  }
-];
-
 export default function Testimonials() {
+  const [stories, setStories] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    fetch(`${API_BASE_URL}/success-stories?limit=20`)
+      .then(res => res.json())
+      .then(data => {
+        setStories(data.stories || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
   return (
     <Box id="stories" sx={{ py: { xs: 8, md: 12 }, bgcolor: '#f5f5f5' }}>
       <Container maxWidth="lg">
         <Typography variant="h3" component="h2" textAlign="center" sx={{ mb: 6, fontWeight: 700, color: '#01371f' }}>
           Success Stories
         </Typography>
-        
-        <Grid container spacing={4}>
-          {testimonials.map((testimonial, index) => (
-            <Grid item xs={12} md={4} key={index}>
-              <Card sx={{ 
-                height: '100%',
-                p: 4,
-                bgcolor: '#fff',
-                boxShadow: 3,
-                position: 'relative',
-                '&:hover': { boxShadow: 6 },
-                transition: 'box-shadow 0.3s ease'
-              }}>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+            <CircularProgress />
+          </Box>
+        ) : stories.length === 0 ? (
+          <Typography textAlign="center">No stories yet.</Typography>
+        ) : (
+          <Box
+            sx={{
+              display: 'flex',
+              overflowX: 'auto',
+              gap: 4,
+              py: 2,
+              scrollSnapType: 'x mandatory'
+            }}
+          >
+            {stories.map((story, index) => (
+              <Card
+                key={story._id || index}
+                sx={{
+                  minWidth: 320,
+                  maxWidth: 400,
+                  flex: '0 0 auto',
+                  p: 4,
+                  bgcolor: '#fff',
+                  boxShadow: 3,
+                  position: 'relative',
+                  scrollSnapAlign: 'start',
+                  '&:hover': { boxShadow: 6 },
+                  transition: 'box-shadow 0.3s ease'
+                }}
+              >
                 <FormatQuoteIcon 
                   sx={{ 
                     fontSize: 60, 
@@ -59,26 +74,26 @@ export default function Testimonials() {
                     position: 'relative',
                     zIndex: 1
                   }}>
-                    "{testimonial.quote}"
+                    "{story.content}"
                   </Typography>
                   <Typography variant="h6" sx={{ 
                     fontWeight: 700, 
                     color: '#01371f',
                     textAlign: 'right'
                   }}>
-                    — {testimonial.author}
+                    — {story.author || 'Anonymous'}
                   </Typography>
                   <Typography variant="body2" sx={{ 
                     color: '#666',
                     textAlign: 'right'
                   }}>
-                    {testimonial.role}
+                    {story.date ? new Date(story.date).toLocaleDateString() : ''}
                   </Typography>
                 </CardContent>
               </Card>
-            </Grid>
-          ))}
-        </Grid>
+            ))}
+          </Box>
+        )}
       </Container>
     </Box>
   );

@@ -6,6 +6,7 @@ import Programs from './Programs';
 import Testimonials from './Testimonials';
 import Volunteer from './Volunteer';
 import Donate from './Donate';
+import FeedbackForm from './FeedbackForm';
 
 export default function Home() {
   return (
@@ -16,6 +17,7 @@ export default function Home() {
       <Testimonials />
       <Volunteer />
       <Donate />
+      <FeedbackForm />
     </Box>
   );
 } 

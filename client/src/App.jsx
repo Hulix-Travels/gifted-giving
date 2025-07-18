@@ -5,6 +5,7 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import Home from './components/Home';
 import AdminDashboard from './components/AdminDashboard';
+import FeedbackForm from './components/FeedbackForm';
 
 function AdminRoute({ children }) {
   const { user, loading } = useAuth();

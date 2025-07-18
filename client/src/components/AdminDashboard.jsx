@@ -128,6 +128,7 @@ export default function AdminDashboard() {
     approvedVolunteers: 0,
     rejectedVolunteers: 0
   });
+  const [feedbackList, setFeedbackList] = useState([]);
   
   // CRUD Dialog States
   const [selectedItem, setSelectedItem] = useState(null);
@@ -135,12 +136,47 @@ export default function AdminDashboard() {
   const [dialogType, setDialogType] = useState(''); // 'create', 'edit', 'view'
   const [editingData, setEditingData] = useState({});
 
+  const [feedbackPage, setFeedbackPage] = useState(1);
+  const [feedbackTotalPages, setFeedbackTotalPages] = useState(1);
+  const [feedbackLimit] = useState(10);
+
+  const [stories, setStories] = useState([]);
+  const [storiesPage, setStoriesPage] = useState(1);
+  const [storiesTotalPages, setStoriesTotalPages] = useState(1);
+  const [storiesLimit] = useState(10);
+  const [storyDialogOpen, setStoryDialogOpen] = useState(false);
+  const [editingStory, setEditingStory] = useState(null);
+
   useEffect(() => {
     if (user && user.role === 'admin') {
       loadDashboardData(donationsPage);
     }
     // eslint-disable-next-line
   }, [user, donationsPage]);
+
+  useEffect(() => {
+    if (tabValue === 4) {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      fetch(`${API_BASE_URL}/feedback?page=${feedbackPage}&limit=${feedbackLimit}`)
+        .then(res => res.json())
+        .then(data => {
+          setFeedbackList(data.feedback || []);
+          setFeedbackTotalPages(data.totalPages || 1);
+        });
+    }
+  }, [tabValue, feedbackPage, feedbackLimit]);
+
+  useEffect(() => {
+    if (tabValue === 5) {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      fetch(`${API_BASE_URL}/success-stories?page=${storiesPage}&limit=${storiesLimit}`)
+        .then(res => res.json())
+        .then(data => {
+          setStories(data.stories || []);
+          setStoriesTotalPages(data.totalPages || 1);
+        });
+    }
+  }, [tabValue, storiesPage, storiesLimit]);
 
   const loadDashboardData = async (page = donationsPage) => {
     try {
@@ -516,6 +552,74 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleFeedbackStatus = (id, status) => {
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    fetch(`${API_BASE_URL}/feedback/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status })
+    })
+      .then(async res => {
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setSnackbar({ open: true, message: data.message || 'Failed to update feedback status', severity: 'error' });
+          return null;
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (!data || !data.feedback) return;
+        setSnackbar({ open: true, message: 'Feedback status updated!', severity: 'success' });
+        // Refetch feedback list for current page after update
+        fetch(`${API_BASE_URL}/feedback?page=${feedbackPage}&limit=${feedbackLimit}`)
+          .then(res => res.json())
+          .then(data => {
+            setFeedbackList(data.feedback || []);
+            setFeedbackTotalPages(data.totalPages || 1);
+          });
+      })
+      .catch(() => {
+        setSnackbar({ open: true, message: 'Failed to update feedback status', severity: 'error' });
+      });
+  };
+
+  const handleSaveStory = (story) => {
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const method = story._id ? 'PATCH' : 'POST';
+    const url = story._id ? `${API_BASE_URL}/success-stories/${story._id}` : `${API_BASE_URL}/success-stories`;
+    fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(story)
+    })
+      .then(res => res.json())
+      .then(() => {
+        setStoryDialogOpen(false);
+        setEditingStory(null);
+        // Refetch stories
+        fetch(`${API_BASE_URL}/success-stories?page=${storiesPage}&limit=${storiesLimit}`)
+          .then(res => res.json())
+          .then(data => {
+            setStories(data.stories || []);
+            setStoriesTotalPages(data.totalPages || 1);
+          });
+      });
+  };
+
+  const handleDeleteStory = (id) => {
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    fetch(`${API_BASE_URL}/success-stories/${id}`, { method: 'DELETE' })
+      .then(() => {
+        // Refetch stories
+        fetch(`${API_BASE_URL}/success-stories?page=${storiesPage}&limit=${storiesLimit}`)
+          .then(res => res.json())
+          .then(data => {
+            setStories(data.stories || []);
+            setStoriesTotalPages(data.totalPages || 1);
+          });
+      });
+  };
+
   if (!user || user.role !== 'admin') {
     return (
       <Box sx={{ py: 8, textAlign: 'center' }}>
@@ -653,6 +757,8 @@ export default function AdminDashboard() {
             <Tab label="Volunteers" />
             <Tab label="Programs" />
             <Tab label="Analytics" />
+            <Tab label="Feedback" />
+            <Tab label="Success Stories" />
           </Tabs>
 
           {/* Donations Tab */}
@@ -1233,6 +1339,153 @@ export default function AdminDashboard() {
                 ))}
               </Grid>
             </Card>
+          </TabPanel>
+
+          {/* Feedback Tab */}
+          <TabPanel value={tabValue} index={4}>
+            <Box sx={{ mt: 4 }}>
+              <Typography variant="h5" sx={{ mb: 2 }}>User Feedback</Typography>
+              {feedbackList.length === 0 ? (
+                <Typography>No feedback yet.</Typography>
+              ) : (
+                <>
+                  {feedbackList.map(fb => (
+                    <Paper key={fb._id} sx={{ mb: 2, p: 2 }}>
+                      <Typography variant="subtitle2" sx={{ color: 'text.secondary' }}>{fb.name || 'Anonymous'} ({fb.email || 'No email'})</Typography>
+                      <Typography variant="body1" sx={{ my: 1 }}>{fb.feedback}</Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>{new Date(fb.createdAt).toLocaleString()}</Typography>
+                      <Typography variant="caption" sx={{ color: fb.status === 'addressed' ? 'green' : fb.status === 'read' ? 'orange' : 'gray', ml: 2 }}>
+                        Status: {fb.status}
+                      </Typography>
+                      <Box sx={{ mt: 1 }}>
+                        {fb.status !== 'read' && (
+                          <Button size="small" onClick={() => handleFeedbackStatus(fb._id, 'read')} sx={{ mr: 1 }}>Mark as Read</Button>
+                        )}
+                        {fb.status !== 'addressed' && (
+                          <Button size="small" color="success" onClick={() => handleFeedbackStatus(fb._id, 'addressed')}>Mark as Addressed</Button>
+                        )}
+                      </Box>
+                    </Paper>
+                  ))}
+                  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mt: 2, gap: 2 }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      disabled={feedbackPage <= 1}
+                      onClick={() => setFeedbackPage(p => Math.max(1, p - 1))}
+                    >
+                      Previous
+                    </Button>
+                    <Typography variant="body2">
+                      Page {feedbackPage} of {feedbackTotalPages}
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      disabled={feedbackPage >= feedbackTotalPages}
+                      onClick={() => setFeedbackPage(p => Math.min(feedbackTotalPages, p + 1))}
+                    >
+                      Next
+                    </Button>
+                  </Box>
+                </>
+              )}
+            </Box>
+          </TabPanel>
+
+          {/* Success Stories Tab */}
+          <TabPanel value={tabValue} index={5}>
+            <Box sx={{ mt: 4 }}>
+              <Typography variant="h5" sx={{ mb: 2 }}>Success Stories</Typography>
+              <Button variant="contained" sx={{ mb: 2 }} onClick={() => { setEditingStory(null); setStoryDialogOpen(true); }}>Add Story</Button>
+              {stories.length === 0 ? (
+                <Typography>No stories yet.</Typography>
+              ) : (
+                <>
+                  {stories.map(story => (
+                    <Paper key={story._id} sx={{ mb: 2, p: 2 }}>
+                      <Typography variant="h6">{story.title}</Typography>
+                      <Typography variant="body2" sx={{ mb: 1 }}>{story.author} {story.date ? '(' + new Date(story.date).toLocaleDateString() + ')' : ''}</Typography>
+                      <Typography variant="body1" sx={{ mb: 1 }}>{story.content}</Typography>
+                      {story.image && <img src={story.image} alt="story" style={{ maxWidth: '100%', maxHeight: 200, marginBottom: 8 }} />}
+                      <Box>
+                        <Button size="small" onClick={() => { setEditingStory(story); setStoryDialogOpen(true); }} sx={{ mr: 1 }}>Edit</Button>
+                        <Button size="small" color="error" onClick={() => handleDeleteStory(story._id)}>Delete</Button>
+                      </Box>
+                    </Paper>
+                  ))}
+                  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mt: 2, gap: 2 }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      disabled={storiesPage <= 1}
+                      onClick={() => setStoriesPage(p => Math.max(1, p - 1))}
+                    >
+                      Previous
+                    </Button>
+                    <Typography variant="body2">
+                      Page {storiesPage} of {storiesTotalPages}
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      disabled={storiesPage >= storiesTotalPages}
+                      onClick={() => setStoriesPage(p => Math.min(storiesTotalPages, p + 1))}
+                    >
+                      Next
+                    </Button>
+                  </Box>
+                </>
+              )}
+              {/* Story Dialog */}
+              <Dialog open={storyDialogOpen} onClose={() => setStoryDialogOpen(false)} maxWidth="sm" fullWidth>
+                <DialogTitle>{editingStory ? 'Edit Story' : 'Add Story'}</DialogTitle>
+                <DialogContent>
+                  <TextField
+                    label="Title"
+                    fullWidth
+                    sx={{ mb: 2 }}
+                    value={editingStory?.title || ''}
+                    onChange={e => setEditingStory({ ...editingStory, title: e.target.value })}
+                  />
+                  <TextField
+                    label="Author"
+                    fullWidth
+                    sx={{ mb: 2 }}
+                    value={editingStory?.author || ''}
+                    onChange={e => setEditingStory({ ...editingStory, author: e.target.value })}
+                  />
+                  <TextField
+                    label="Image URL"
+                    fullWidth
+                    sx={{ mb: 2 }}
+                    value={editingStory?.image || ''}
+                    onChange={e => setEditingStory({ ...editingStory, image: e.target.value })}
+                  />
+                  <TextField
+                    label="Content"
+                    fullWidth
+                    multiline
+                    minRows={4}
+                    sx={{ mb: 2 }}
+                    value={editingStory?.content || ''}
+                    onChange={e => setEditingStory({ ...editingStory, content: e.target.value })}
+                  />
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <Typography sx={{ mr: 2 }}>Featured:</Typography>
+                    <input
+                      type="checkbox"
+                      checked={!!editingStory?.featured}
+                      onChange={e => setEditingStory({ ...editingStory, featured: e.target.checked })}
+                    />
+                  </Box>
+                </DialogContent>
+                <DialogActions>
+                  <Button onClick={() => setStoryDialogOpen(false)}>Cancel</Button>
+                  <Button onClick={() => handleSaveStory(editingStory || {})} variant="contained">Save</Button>
+                </DialogActions>
+              </Dialog>
+            </Box>
           </TabPanel>
         </Paper>
 

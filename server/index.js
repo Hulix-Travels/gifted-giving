@@ -18,6 +18,8 @@ const volunteerRoutes = require('./routes/volunteers');
 const userRoutes = require('./routes/users');
 const adminRoutes = require('./routes/admin');
 const stripeRoutes = require('./routes/stripe');
+const feedbackRoutes = require('./routes/feedback');
+const successStoriesRoutes = require('./routes/successStories');
 
 // Security middleware
 app.use(helmet());
@@ -41,9 +43,11 @@ app.use(cors({
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+// Explicitly handle preflight requests for all routes
+app.options('*', cors());
 
 // Rate limiting
 const limiter = rateLimit({
@@ -88,6 +92,8 @@ app.use('/api/volunteers', volunteerRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/stripe', stripeRoutes);
+app.use('/api/feedback', feedbackRoutes);
+app.use('/api/success-stories', successStoriesRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
