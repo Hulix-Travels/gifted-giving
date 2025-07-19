@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Donation Confirmation</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #01371f; color: white; padding: 30px; text-align: center; }
+    .content { padding: 30px; background: #f9f9f9; }
+    .amount { font-size: 24px; font-weight: bold; color: #00ff8c; }
+    .footer { text-align: center; padding: 20px; color: #666; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Thank You for Your Donation!</h1>
+    </div>
+    <div class="content">
+      <h2>Hello {{donorName}}!</h2>
+      <p>Thank you for your generous donation of <span class="amount">${{amount}}</span> to {{programName}}.</p>
+      <p>Your contribution will make a real difference in children's lives. Here's what your donation will help with:</p>
+      <ul>
+        <li>Providing education and school supplies</li>
+        <li>Supporting health and nutrition programs</li>
+        <li>Creating opportunities for children to thrive</li>
+      </ul>
+      <p><strong>Transaction ID:</strong> {{transactionId}}</p>
+      <p><strong>Date:</strong> {{date}}</p>
+      <p>You can view your donation history and track your impact in your dashboard.</p>
+    </div>
+    <div class="footer">
+      <p>© 2025 Gifted Giving. All rights reserved.</p>
+      <p>123 Buganda Road, Kampala, Uganda</p>
+    </div>
+  </div>
+</body>
+</html>

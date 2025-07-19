@@ -3,6 +3,7 @@ const { body, validationResult } = require('express-validator');
 const Donation = require('../models/Donation');
 const Program = require('../models/Program');
 const { auth, optionalAuth } = require('../middleware/auth');
+const emailService = require('../services/emailService');
 const router = express.Router();
 
 const NodeCache = require('node-cache');
@@ -95,6 +96,17 @@ router.post('/', [
 
     // Populate program details
     await donation.populate('program', 'name category image');
+
+    // Send donation confirmation email if user is authenticated
+    if (req.user) {
+      try {
+        await donation.populate('donor', 'firstName lastName email');
+        await emailService.sendDonationConfirmationEmail(donation);
+      } catch (emailError) {
+        console.error('Failed to send donation confirmation email:', emailError);
+        // Don't fail the donation if email fails
+      }
+    }
 
     res.status(201).json({
       message: 'Donation created successfully',

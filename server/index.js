@@ -20,6 +20,7 @@ const adminRoutes = require('./routes/admin');
 const stripeRoutes = require('./routes/stripe');
 const feedbackRoutes = require('./routes/feedback');
 const successStoriesRoutes = require('./routes/successStories');
+const newsletterRoutes = require('./routes/newsletter');
 
 // Security middleware
 app.use(helmet());
@@ -94,6 +95,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/stripe', stripeRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/success-stories', successStoriesRoutes);
+app.use('/api/newsletter', newsletterRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

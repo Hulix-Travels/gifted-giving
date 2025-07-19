@@ -64,7 +64,7 @@ import {
   Refresh
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import { donationsAPI, volunteersAPI, programsAPI } from '../services/api';
+import { donationsAPI, volunteersAPI, programsAPI, newsletterAPI } from '../services/api';
 
 function TabPanel({ children, value, index, ...other }) {
   return (
@@ -147,6 +147,24 @@ export default function AdminDashboard() {
   const [storyDialogOpen, setStoryDialogOpen] = useState(false);
   const [editingStory, setEditingStory] = useState(null);
 
+  // Newsletter state
+  const [subscribers, setSubscribers] = useState([]);
+  const [subscribersPage, setSubscribersPage] = useState(1);
+  const [subscribersTotalPages, setSubscribersTotalPages] = useState(1);
+  const [subscribersLimit] = useState(20);
+  const [newsletterStats, setNewsletterStats] = useState({
+    totalSubscribers: 0,
+    totalUnsubscribed: 0,
+    newThisMonth: 0,
+    totalEmails: 0
+  });
+  const [newsletterDialogOpen, setNewsletterDialogOpen] = useState(false);
+  const [newsletterForm, setNewsletterForm] = useState({
+    subject: '',
+    content: ''
+  });
+  const [sendingNewsletter, setSendingNewsletter] = useState(false);
+
   useEffect(() => {
     if (user && user.role === 'admin') {
       loadDashboardData(donationsPage);
@@ -177,6 +195,28 @@ export default function AdminDashboard() {
         });
     }
   }, [tabValue, storiesPage, storiesLimit]);
+
+  useEffect(() => {
+    if (tabValue === 6) {
+      loadNewsletterData();
+    }
+  }, [tabValue, subscribersPage, subscribersLimit]);
+
+  const loadNewsletterData = async () => {
+    try {
+      const [subscribersData, statsData] = await Promise.all([
+        newsletterAPI.getSubscribers({ page: subscribersPage, limit: subscribersLimit }),
+        newsletterAPI.getStats()
+      ]);
+
+      setSubscribers(subscribersData.subscribers || []);
+      setSubscribersTotalPages(subscribersData.totalPages || 1);
+      setNewsletterStats(statsData);
+    } catch (error) {
+      console.error('Error loading newsletter data:', error);
+      setSnackbar({ open: true, message: 'Failed to load newsletter data', severity: 'error' });
+    }
+  };
 
   const loadDashboardData = async (page = donationsPage) => {
     try {
@@ -620,6 +660,38 @@ export default function AdminDashboard() {
       });
   };
 
+  const handleSendNewsletter = async () => {
+    if (!newsletterForm.subject.trim() || !newsletterForm.content.trim()) {
+      setSnackbar({
+        open: true,
+        message: 'Please fill in both subject and content',
+        severity: 'error'
+      });
+      return;
+    }
+
+    setSendingNewsletter(true);
+    try {
+      const response = await newsletterAPI.sendNewsletter(newsletterForm.subject, newsletterForm.content);
+      setSnackbar({
+        open: true,
+        message: response.message,
+        severity: 'success'
+      });
+      setNewsletterDialogOpen(false);
+      setNewsletterForm({ subject: '', content: '' });
+      loadNewsletterData(); // Refresh stats
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: error.message || 'Failed to send newsletter',
+        severity: 'error'
+      });
+    } finally {
+      setSendingNewsletter(false);
+    }
+  };
+
   if (!user || user.role !== 'admin') {
     return (
       <Box sx={{ py: 8, textAlign: 'center' }}>
@@ -759,6 +831,7 @@ export default function AdminDashboard() {
             <Tab label="Analytics" />
             <Tab label="Feedback" />
             <Tab label="Success Stories" />
+            <Tab label="Newsletter" />
           </Tabs>
 
           {/* Donations Tab */}
@@ -1485,6 +1558,144 @@ export default function AdminDashboard() {
                   <Button onClick={() => handleSaveStory(editingStory || {})} variant="contained">Save</Button>
                 </DialogActions>
               </Dialog>
+            </Box>
+          </TabPanel>
+
+          {/* Newsletter Tab */}
+          <TabPanel value={tabValue} index={6}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+              <Typography variant="h6">Newsletter Subscribers</Typography>
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <Button
+                  variant="contained"
+                  startIcon={<Add />}
+                  onClick={() => setNewsletterDialogOpen(true)}
+                  sx={{ background: 'var(--primary-green)' }}
+                >
+                  Send Newsletter
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<Refresh />}
+                  onClick={() => loadNewsletterData()}
+                  sx={{ borderColor: 'var(--primary-green)', color: 'var(--primary-green)' }}
+                >
+                  Refresh
+                </Button>
+              </Box>
+            </Box>
+
+            {/* Newsletter Stats */}
+            <Grid container spacing={2} sx={{ mb: 3 }}>
+              <Grid item xs={12} sm={6} md={3}>
+                <Card sx={{ background: 'linear-gradient(135deg, #00ff8c 0%, #00e67a 100%)', color: '#01371f' }}>
+                  <CardContent>
+                    <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                      {newsletterStats.totalSubscribers}
+                    </Typography>
+                    <Typography variant="body2">Active Subscribers</Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <Card sx={{ background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%)', color: '#fff' }}>
+                  <CardContent>
+                    <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                      {newsletterStats.totalUnsubscribed}
+                    </Typography>
+                    <Typography variant="body2">Unsubscribed</Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <Card sx={{ background: 'linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%)', color: '#fff' }}>
+                  <CardContent>
+                    <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                      {newsletterStats.newThisMonth}
+                    </Typography>
+                    <Typography variant="body2">New This Month</Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <Card sx={{ background: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', color: '#01371f' }}>
+                  <CardContent>
+                    <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                      {newsletterStats.totalEmails}
+                    </Typography>
+                    <Typography variant="body2">Total Emails</Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
+
+            {/* Subscribers Table */}
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Email</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Subscribed Date</TableCell>
+                    <TableCell>Last Email Sent</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {subscribers.map((subscriber) => (
+                    <TableRow key={subscriber._id}>
+                      <TableCell>
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <Avatar sx={{ width: 32, height: 32 }}>
+                            <Email />
+                          </Avatar>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {subscriber.email}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={subscriber.isActive ? 'Active' : 'Inactive'} 
+                          color={subscriber.isActive ? 'success' : 'default'}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {new Date(subscriber.subscribedAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        {subscriber.lastEmailSent 
+                          ? new Date(subscriber.lastEmailSent).toLocaleDateString()
+                          : 'Never'
+                        }
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+
+            {/* Pagination Controls for Subscribers */}
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mt: 2, gap: 2 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => setSubscribersPage((prev) => Math.max(prev - 1, 1))}
+                disabled={subscribersPage === 1}
+              >
+                Previous
+              </Button>
+              <Typography variant="body2">
+                Page {subscribersPage} of {subscribersTotalPages} ({subscribers.length} subscribers)
+              </Typography>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => setSubscribersPage((prev) => Math.min(prev + 1, subscribersTotalPages))}
+                disabled={subscribersPage === subscribersTotalPages}
+              >
+                Next
+              </Button>
             </Box>
           </TabPanel>
         </Paper>
@@ -2367,6 +2578,63 @@ export default function AdminDashboard() {
                 {loading ? <CircularProgress size={20} /> : 'Save'}
               </Button>
             )}
+          </DialogActions>
+        </Dialog>
+
+        {/* Newsletter Sending Dialog */}
+        <Dialog 
+          open={newsletterDialogOpen} 
+          onClose={() => setNewsletterDialogOpen(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>
+            Send Newsletter to All Subscribers
+          </DialogTitle>
+          <DialogContent>
+            <Box sx={{ pt: 2 }}>
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Subject"
+                    value={newsletterForm.subject}
+                    onChange={(e) => setNewsletterForm({ ...newsletterForm, subject: e.target.value })}
+                    placeholder="Enter newsletter subject"
+                    required
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={8}
+                    label="Content"
+                    value={newsletterForm.content}
+                    onChange={(e) => setNewsletterForm({ ...newsletterForm, content: e.target.value })}
+                    placeholder="Enter newsletter content (HTML supported)"
+                    required
+                    helperText="You can use HTML tags for formatting"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <Alert severity="info">
+                    This newsletter will be sent to {newsletterStats.totalSubscribers} active subscribers.
+                  </Alert>
+                </Grid>
+              </Grid>
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setNewsletterDialogOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={handleSendNewsletter} 
+              variant="contained"
+              disabled={sendingNewsletter}
+              sx={{ background: 'var(--primary-green)' }}
+            >
+              {sendingNewsletter ? <CircularProgress size={20} /> : 'Send Newsletter'}
+            </Button>
           </DialogActions>
         </Dialog>
 

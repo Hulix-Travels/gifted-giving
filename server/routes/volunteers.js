@@ -1,6 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { auth, adminAuth } = require('../middleware/auth');
+const emailService = require('../services/emailService');
 const router = express.Router();
 
 // Volunteer application model (simplified for now)
@@ -82,6 +83,14 @@ router.post('/apply', [
 
     await application.save();
 
+    // Send application confirmation email
+    try {
+      await emailService.sendVolunteerApplicationEmail(application);
+    } catch (emailError) {
+      console.error('Failed to send volunteer application email:', emailError);
+      // Don't fail the application if email fails
+    }
+
     res.status(201).json({
       message: 'Volunteer application submitted successfully',
       application: {
@@ -100,6 +109,41 @@ router.post('/apply', [
   } catch (error) {
     console.error('Volunteer application error:', error);
     res.status(500).json({ message: 'Server error during application submission' });
+  }
+});
+
+// @route   GET /api/volunteers/my-applications
+// @desc    Get volunteer applications submitted by the authenticated user
+// @access  Private
+router.get('/my-applications', auth, async (req, res) => {
+  try {
+    // Use the authenticated user's email to find their applications
+    const userEmail = req.user.email;
+    if (!userEmail) {
+      return res.status(400).json({ message: 'User email not found in token.' });
+    }
+
+    const { page = 1, limit = 10 } = req.query;
+    const query = { email: userEmail };
+
+    const applications = await VolunteerApplication.find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .select('-__v')
+      .exec();
+
+    const total = await VolunteerApplication.countDocuments(query);
+
+    res.json({
+      applications,
+      totalPages: Math.ceil(total / limit),
+      currentPage: parseInt(page),
+      totalApplications: total
+    });
+  } catch (error) {
+    console.error('Get my volunteer applications error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

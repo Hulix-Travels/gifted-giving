@@ -150,9 +150,16 @@ export const volunteersAPI = {
     body: JSON.stringify(applicationData),
   }),
   
+  // For admin use only
   getApplications: (params = {}) => {
     const queryString = new URLSearchParams(params).toString();
     return apiRequest(`/volunteers/applications?${queryString}`);
+  },
+
+  // For regular users
+  getMyApplications: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/volunteers/my-applications?${queryString}`);
   },
   
   updateApplicationStatus: (id, status) => apiRequest(`/volunteers/applications/${id}/status`, {
@@ -186,6 +193,31 @@ export const stripeAPI = {
   }),
 };
 
+// Newsletter API
+export const newsletterAPI = {
+  subscribe: (email) => apiRequest('/newsletter/subscribe', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  }),
+  
+  unsubscribe: (email) => apiRequest('/newsletter/unsubscribe', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  }),
+  
+  getSubscribers: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/newsletter/subscribers?${queryString}`);
+  },
+  
+  getStats: () => apiRequest('/newsletter/stats'),
+  
+  sendNewsletter: (subject, content) => apiRequest('/newsletter/send', {
+    method: 'POST',
+    body: JSON.stringify({ subject, content }),
+  }),
+};
+
 export default {
   auth: authAPI,
   programs: programsAPI,
@@ -193,5 +225,6 @@ export default {
   volunteers: volunteersAPI,
   users: usersAPI,
   stripe: stripeAPI,
+  newsletter: newsletterAPI,
   healthCheck,
 }; 

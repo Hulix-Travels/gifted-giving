@@ -17,7 +17,7 @@ import MenuItem from '@mui/material/MenuItem';
 import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../contexts/AuthContext';
 import AuthModal from './AuthModal';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const navLinks = [
   { label: 'About', href: '#about' },
@@ -33,6 +33,7 @@ export default function Header() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const { user, logout, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
   const handleDrawerToggle = () => setDrawerOpen(!drawerOpen);
   const handleAuthModalOpen = () => setAuthModalOpen(true);
@@ -49,6 +50,7 @@ export default function Header() {
   const handleLogout = () => {
     logout();
     handleClose();
+    navigate('/');
   };
 
   const _handleProfile = () => {
@@ -179,7 +181,7 @@ export default function Header() {
                     {isAuthenticated ? (
                       <>
                         <ListItem disablePadding>
-                          <ListItemButton onClick={() => scrollToSection('#user-dashboard')}>
+                          <ListItemButton component={Link} to="/dashboard" onClick={handleClose}>
                             <ListItemText 
                               primary="My Dashboard" 
                               sx={{ fontWeight: 600 }}
@@ -305,7 +307,7 @@ export default function Header() {
                       }
                     }}
                   >
-                    <MenuItem onClick={() => scrollToSection('#user-dashboard')} sx={{ fontWeight: 600 }}>
+                    <MenuItem component={Link} to="/dashboard" sx={{ fontWeight: 600 }}>
                       My Dashboard
                     </MenuItem>
                     <MenuItem onClick={handleLogout} sx={{ fontWeight: 600 }}>
