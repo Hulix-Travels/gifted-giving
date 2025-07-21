@@ -1,5 +1,5 @@
 // AdminDashboard component - Updated to show all donations
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Container,
@@ -77,6 +77,90 @@ function TabPanel({ children, value, index, ...other }) {
     >
       {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
     </div>
+  );
+}
+
+// Helper for image upload
+function ImageUploadField({ label, value, onChange, disabled }) {
+  const inputRef = useRef();
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    setError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.url) {
+        onChange(data.url);
+      } else {
+        setError('Upload failed');
+      }
+    } catch (err) {
+      setError('Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <Box sx={{ mb: 2 }}>
+      <Typography variant="body2" sx={{ mb: 0.5 }}>{label}</Typography>
+      <Box
+        sx={{
+          border: '2px dashed #00cc6a',
+          borderRadius: 2,
+          p: 2,
+          textAlign: 'center',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          bgcolor: '#f9f9f9',
+          mb: 1
+        }}
+        onClick={() => !disabled && inputRef.current && inputRef.current.click()}
+        onDragOver={e => { e.preventDefault(); if (!disabled) e.dataTransfer.dropEffect = 'copy'; }}
+        onDrop={e => {
+          e.preventDefault();
+          if (disabled) return;
+          const file = e.dataTransfer.files[0];
+          if (file) {
+            const fakeEvent = { target: { files: [file] } };
+            handleFileChange(fakeEvent);
+          }
+        }}
+      >
+        {uploading ? 'Uploading...' : 'Click or drag an image here to upload'}
+      </Box>
+      <input
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        ref={inputRef}
+        onChange={handleFileChange}
+        disabled={disabled}
+      />
+      {value && (
+        <Box sx={{ mt: 1, mb: 1, textAlign: 'center' }}>
+          <img src={value} alt="Preview" style={{ maxWidth: 120, maxHeight: 80, borderRadius: 8 }} />
+        </Box>
+      )}
+      <TextField
+        fullWidth
+        label="Image URL"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        disabled={disabled}
+        sx={{ mt: 1 }}
+      />
+      {error && <Typography color="error" variant="caption">{error}</Typography>}
+    </Box>
   );
 }
 
@@ -1528,13 +1612,7 @@ export default function AdminDashboard() {
                     value={editingStory?.author || ''}
                     onChange={e => setEditingStory({ ...editingStory, author: e.target.value })}
                   />
-                  <TextField
-                    label="Image URL"
-                    fullWidth
-                    sx={{ mb: 2 }}
-                    value={editingStory?.image || ''}
-                    onChange={e => setEditingStory({ ...editingStory, image: e.target.value })}
-                  />
+                  <ImageUploadField label="Image" value={editingStory?.image || ''} onChange={val => setEditingStory({ ...editingStory, image: val })} disabled={!!editingStory && !editingStory._id && dialogType === 'view'} />
                   <TextField
                     label="Content"
                     fullWidth
@@ -1844,13 +1922,7 @@ export default function AdminDashboard() {
                     />
                   </Grid>
                   <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
-                      label="Image URL"
-                      value={dialogType === 'view' ? selectedItem.data?.image || '' : editingData.image || ''}
-                      onChange={(e) => setEditingData({...editingData, image: e.target.value})}
-                      disabled={dialogType === 'view'}
-                    />
+                    <ImageUploadField label="Image" value={dialogType === 'view' ? selectedItem.data?.image || '' : editingData.image || ''} onChange={val => setEditingData({...editingData, image: val })} disabled={dialogType === 'view'} />
                   </Grid>
                   <Grid item xs={12} md={6}>
                     <FormControl fullWidth>

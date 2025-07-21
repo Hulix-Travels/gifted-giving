@@ -73,6 +73,17 @@ export default function Programs() {
     }).format(amount);
   };
 
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  const getImageUrl = (img) => {
+    if (!img) return '';
+    if (img.startsWith('/uploads/')) {
+      // Remove trailing /api if present
+      const base = API_BASE_URL.replace(/\/api$/, '');
+      return base + img;
+    }
+    return img;
+  };
+
   if (loading) {
     return (
       <Box 
@@ -229,7 +240,7 @@ export default function Programs() {
                   <CardMedia
                     component="img"
                     height="200"
-                    image={program.image}
+                    image={getImageUrl(program.image)}
                     alt={program.name}
                     sx={{
                       transition: 'transform 0.6s ease',

@@ -327,6 +327,15 @@ export default function Donate() {
 
   const selectedProgramData = programs.find(p => p._id === selectedProgram);
   const donationOptions = getDonationOptions();
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  const getImageUrl = (img) => {
+    if (!img) return '';
+    if (img.startsWith('/uploads/')) {
+      const base = API_BASE_URL.replace(/\/api$/, '');
+      return base + img;
+    }
+    return img;
+  };
 
   return (
     <Box id="donate" sx={{ py: { xs: 8, md: 12 }, background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' }}>
@@ -416,7 +425,7 @@ export default function Donate() {
                         <MenuItem key={program._id} value={program._id}>
                           <Box display="flex" alignItems="center" gap={2}>
                             <Avatar 
-                              src={program.image} 
+                              src={getImageUrl(program.image)} 
                               sx={{ width: 32, height: 32 }}
                             />
                             <Box>
@@ -615,7 +624,7 @@ export default function Donate() {
               {selectedProgramData && (
                 <Box sx={{ mb: 3, p: 2, bgcolor: 'rgba(0,255,140,0.07)', borderRadius: 2, border: '1px solid rgba(0,255,140,0.15)' }}>
                   <Box display="flex" alignItems="center" gap={2} mb={1}>
-                    <Avatar src={selectedProgramData.image} sx={{ width: 40, height: 40 }} />
+                    <Avatar src={getImageUrl(selectedProgramData.image)} sx={{ width: 40, height: 40 }} />
                     <Box>
                       <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'var(--primary-green)' }}>
                         {selectedProgramData.name}

@@ -205,158 +205,131 @@ export default function About() {
           </Grid>
         </Grid>
 
-        {/* Stats Section */}
-        <Box className="fade-in-up">
-          <Typography 
-            variant="h3" 
-            sx={{ 
-              textAlign: 'center',
-              mb: 2,
-              fontWeight: 700,
-              color: 'var(--primary-green)',
-              fontSize: { xs: '2rem', md: '2.5rem' }
+        {/* Impact Section Title and Subtitle */}
+        <Typography
+          variant="h3"
+          sx={{
+            textAlign: 'center',
+            mb: 2,
+            fontWeight: 700,
+            color: 'var(--primary-green)',
+            fontSize: { xs: '2rem', md: '2.5rem' }
+          }}
+        >
+          Our Impact
+        </Typography>
+        <Typography
+          variant="h6"
+          sx={{
+            textAlign: 'center',
+            mb: 6,
+            color: 'var(--gray)',
+            maxWidth: 600,
+            mx: 'auto',
+            fontSize: '1.1rem',
+            lineHeight: 1.6
+          }}
+        >
+          Real numbers, real impact. Every statistic represents a life changed for the better.
+        </Typography>
+
+        {/* Impact Stats */}
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', my: 6 }}>
+            <CircularProgress size={48} sx={{ color: 'var(--primary-green)' }} />
+          </Box>
+        ) : (
+          <Box
+            sx={{
+              background: 'linear-gradient(135deg, #f8f9fa 60%, #e0f7ef 100%)',
+              borderRadius: 4,
+              boxShadow: '0 4px 24px rgba(0,255,140,0.06)',
+              px: { xs: 1, md: 4 },
+              py: { xs: 2, md: 4 },
+              mb: 6
             }}
           >
-            Our Impact
-          </Typography>
-          
-          <Typography 
-            variant="h6" 
-            sx={{ 
-              textAlign: 'center',
-              mb: 6,
-              color: 'var(--gray)',
-              maxWidth: 600,
-              mx: 'auto',
-              fontSize: '1.1rem',
-              lineHeight: 1.6
-            }}
-          >
-            Real numbers, real impact. Every statistic represents a life changed for the better.
-          </Typography>
-          
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', my: 6 }}>
-              <CircularProgress size={48} sx={{ color: 'var(--primary-green)' }} />
-            </Box>
-          ) : (
-            <Grid container spacing={2} justifyContent="center">
-              {liveStats.map((stat, index) => (
-                <Grid item xs={6} sm={4} md={2.5} key={index}>
-                  <Card 
-                    className="card"
-                    sx={{ 
-                      textAlign: 'center', 
+            <Grid container spacing={4} justifyContent="center" alignItems="stretch">
+              {liveStats.map((stat, idx) => (
+                <Grid item xs={12} sm={6} md={3} key={idx}>
+                  <Card
+                    sx={{
                       height: '100%',
                       background: 'var(--white)',
                       border: '1px solid rgba(0,0,0,0.08)',
                       borderRadius: 3,
                       overflow: 'hidden',
                       position: 'relative',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 2px 12px rgba(0,255,140,0.04)',
                       transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                      '&::before': {
-                        content: '""',
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        height: '3px',
-                        background: stat.gradient,
-                        transform: 'scaleX(0)',
-                        transition: 'transform 0.4s ease',
-                        transformOrigin: 'left'
-                      },
                       '&:hover': {
-                        transform: 'translateY(-8px)',
-                        boxShadow: '0 15px 30px rgba(0,0,0,0.15)',
-                        '&::before': {
-                          transform: 'scaleX(1)'
-                        },
-                        '& .stat-icon': {
-                          transform: 'scale(1.1) rotate(5deg)',
-                          filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.2))'
-                        },
-                        '& .stat-number': {
-                          transform: 'scale(1.03)',
-                          textShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                        },
-                        '& .trend-chip': {
-                          transform: 'scale(1.05)',
-                          boxShadow: '0 3px 8px rgba(0,0,0,0.15)'
-                        }
+                        transform: 'translateY(-6px) scale(1.03)',
+                        boxShadow: '0 8px 32px rgba(0,255,140,0.10)',
+                        borderColor: 'var(--primary-green)'
                       }
                     }}
                   >
-                    <CardContent sx={{ p: 2.5 }}>
-                      {/* Category Badge */}
-                      <Chip 
-                        label={stat.category}
-                        size="small"
-                        sx={{
-                          mb: 1.5,
-                          background: 'rgba(0,255,140,0.1)',
-                          color: 'var(--primary-green)',
-                          fontWeight: 600,
-                          fontSize: '0.65rem',
-                          height: 20
-                        }}
-                      />
-                      
+                    <CardContent sx={{ p: 3, width: '100%', textAlign: 'center' }}>
                       {/* Icon */}
-                      <Box 
+                      <Box
                         className="stat-icon"
-                        sx={{ 
+                        sx={{
                           color: stat.color,
                           mb: 2,
-                          fontSize: '2.5rem',
+                          fontSize: '2.7rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          mx: 'auto',
                           transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                          filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                          filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.08))'
                         }}
                       >
                         {renderAboutIcon(stat.icon)}
                       </Box>
-                      
                       {/* Number */}
-                      <Typography 
+                      <Typography
                         className="stat-number"
-                        variant="h3" 
-                        sx={{ 
-                          fontWeight: 900, 
-                          color: 'var(--primary-green)', 
+                        variant="h3"
+                        sx={{
+                          fontWeight: 900,
+                          color: 'var(--primary-green)',
                           mb: 0.5,
-                          fontSize: { xs: '1.8rem', md: '2.2rem' },
-                          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                          fontSize: { xs: '1.7rem', md: '2.1rem' },
                           background: stat.gradient,
                           backgroundClip: 'text',
                           WebkitBackgroundClip: 'text',
-                          WebkitTextFillColor: 'transparent'
+                          WebkitTextFillColor: 'transparent',
+                          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
                         }}
                       >
                         {stat.number}
                       </Typography>
-                      
                       {/* Label */}
-                      <Typography 
-                        variant="body1" 
-                        sx={{ 
-                          color: 'var(--gray)', 
-                          fontSize: '0.9rem',
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          color: 'var(--gray)',
+                          fontSize: '0.95rem',
                           fontWeight: 700,
-                          mb: 1.5,
+                          mb: 1,
                           textTransform: 'uppercase',
                           letterSpacing: '0.3px'
                         }}
                       >
                         {stat.label}
                       </Typography>
-                      
                       {/* Description */}
-                      <Typography 
-                        variant="caption" 
-                        sx={{ 
-                          color: '#666', 
-                          fontSize: '0.75rem',
-                          lineHeight: 1.4,
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: '#666',
+                          fontSize: '0.8rem',
+                          lineHeight: 1.5,
                           mb: 2,
                           minHeight: '2.1rem',
                           display: 'block'
@@ -364,24 +337,17 @@ export default function About() {
                       >
                         {stat.description}
                       </Typography>
-                      
-                      {/* Trend */}
-                      <Chip 
-                        className="trend-chip"
-                        icon={<TrendingUp />}
-                        label={stat.trend}
+                      {/* Category Badge */}
+                      <Chip
+                        label={stat.category}
                         size="small"
                         sx={{
-                          background: 'linear-gradient(135deg, #00ff8c, #00cc6a)',
+                          mb: 1.5,
+                          background: 'rgba(0,255,140,0.08)',
                           color: 'var(--primary-green)',
-                          fontWeight: 700,
-                          fontSize: '0.65rem',
-                          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                          height: 20,
-                          '& .MuiChip-icon': {
-                            color: 'var(--primary-green)',
-                            fontSize: '0.8rem'
-                          }
+                          fontWeight: 600,
+                          fontSize: '0.7rem',
+                          height: 22
                         }}
                       />
                     </CardContent>
@@ -389,55 +355,54 @@ export default function About() {
                 </Grid>
               ))}
             </Grid>
-          )}
-          
-          {/* Call to Action */}
-          <Box sx={{ textAlign: 'center', mt: 8 }}>
-            <Typography 
-              variant="h5" 
-              sx={{ 
-                mb: 3,
-                fontWeight: 700,
-                color: 'var(--primary-green)'
-              }}
-            >
-              Be Part of Our Growing Impact
-            </Typography>
-            <Typography 
-              variant="body1" 
-              sx={{ 
-                mb: 4,
-                color: 'var(--gray)',
-                fontSize: '1.1rem',
-                maxWidth: 600,
-                mx: 'auto'
-              }}
-            >
-              Join thousands of donors and volunteers who are making a real difference in children's lives around the world.
-            </Typography>
-            <Button 
-              variant="contained"
-              size="large"
-              startIcon={<Star />}
-              sx={{
-                background: 'linear-gradient(135deg, var(--primary-green), var(--dark-green))',
-                color: 'var(--white)',
-                px: 5,
-                py: 2,
-                borderRadius: 3,
-                fontWeight: 700,
-                fontSize: '1.1rem',
-                boxShadow: 'var(--shadow-md)',
-                '&:hover': { 
-                  background: 'linear-gradient(135deg, var(--dark-green), var(--primary-green))',
-                  transform: 'translateY(-2px)',
-                  boxShadow: 'var(--shadow-lg)'
-                }
-              }}
-            >
-              Join Our Mission
-            </Button>
           </Box>
+        )}
+        {/* Call to Action */}
+        <Box sx={{ textAlign: 'center', mt: 8 }}>
+          <Typography 
+            variant="h5" 
+            sx={{ 
+              mb: 3,
+              fontWeight: 700,
+              color: 'var(--primary-green)'
+            }}
+          >
+            Be Part of Our Growing Impact
+          </Typography>
+          <Typography 
+            variant="body1" 
+            sx={{ 
+              mb: 4,
+              color: 'var(--gray)',
+              fontSize: '1.1rem',
+              maxWidth: 600,
+              mx: 'auto'
+            }}
+          >
+            Join thousands of donors and volunteers who are making a real difference in children's lives around the world.
+          </Typography>
+          <Button 
+            variant="contained"
+            size="large"
+            startIcon={<Star />}
+            sx={{
+              background: 'linear-gradient(135deg, var(--primary-green), var(--dark-green))',
+              color: 'var(--white)',
+              px: 5,
+              py: 2,
+              borderRadius: 3,
+              fontWeight: 700,
+              fontSize: '1.1rem',
+              boxShadow: 'var(--shadow-md)',
+              '&:hover': { 
+                background: 'linear-gradient(135deg, var(--dark-green), var(--primary-green))',
+                transform: 'translateY(-2px)',
+                boxShadow: 'var(--shadow-lg)'
+              }
+            }}
+          >
+            Join Our Mission
+          </Button>
         </Box>
       </Container>
     </Box>

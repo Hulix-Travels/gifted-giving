@@ -33,7 +33,8 @@ app.use(cors({
       'http://gifted-giving-frontend.s3-website.eu-north-1.amazonaws.com',
       'https://gifted-giving-frontend.s3-website.eu-north-1.amazonaws.com',
       'http://localhost:3000',
-      'http://localhost:5173' // Vite dev server
+      'http://localhost:5173',
+      'http://127.0.0.1:5173'
     ];
     
     if (allowedOrigins.includes(origin)) {
@@ -96,6 +97,15 @@ app.use('/api/stripe', stripeRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/success-stories', successStoriesRoutes);
 app.use('/api/newsletter', newsletterRoutes);
+
+// Serve uploads directory statically
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static('uploads'));
+
+// Upload route
+app.use('/api/upload', require('./routes/upload'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
