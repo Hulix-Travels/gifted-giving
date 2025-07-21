@@ -274,8 +274,8 @@ export default function Volunteer() {
               const message = err.msg || err.message || 'Invalid value';
               return `${fieldName}: ${message}`;
             } catch {
-              return 'Invalid field value';
-            }
+               return 'Invalid field value';
+             }
           }).join(', ');
           errorMessage = `Please fix these issues: ${errorMessages}`;
         } else {

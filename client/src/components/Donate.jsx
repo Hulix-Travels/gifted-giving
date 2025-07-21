@@ -391,10 +391,10 @@ export default function Donate() {
           )}
         </Box>
 
-        <Grid container spacing={6}>
+        <Grid container spacing={6} justifyContent="center" alignItems="flex-start">
           {/* Program Selection and Donation Options */}
-          <Grid xs={12} md={6}>
-            <Card sx={{ p: 4, borderRadius: 3, height: 'fit-content' }}>
+          <Grid item xs={12} md={5}>
+            <Card sx={{ p: 4, borderRadius: 3, height: 'fit-content', boxShadow: 4 }}>
               <Typography variant="h5" sx={{ mb: 3, fontWeight: 700, color: 'var(--primary-green)' }}>
                 Choose Your Program
               </Typography>
@@ -605,11 +605,52 @@ export default function Donate() {
           </Grid>
 
           {/* Donation Form */}
-          <Grid xs={12} md={6}>
-            <Card sx={{ p: 4, borderRadius: 3 }}>
+          <Grid item xs={12} md={5}>
+            <Card sx={{ p: 4, borderRadius: 3, boxShadow: 4 }}>
               <Typography variant="h5" sx={{ mb: 3, fontWeight: 700, color: 'var(--primary-green)' }}>
                 Complete Your Donation
               </Typography>
+
+              {/* Donation Summary at the top */}
+              {selectedProgramData && (
+                <Box sx={{ mb: 3, p: 2, bgcolor: 'rgba(0,255,140,0.07)', borderRadius: 2, border: '1px solid rgba(0,255,140,0.15)' }}>
+                  <Box display="flex" alignItems="center" gap={2} mb={1}>
+                    <Avatar src={selectedProgramData.image} sx={{ width: 40, height: 40 }} />
+                    <Box>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'var(--primary-green)' }}>
+                        {selectedProgramData.name}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        {selectedProgramData.category}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Typography variant="body2" sx={{ color: '#666' }}>
+                    <strong>Amount:</strong> ${customAmount ? customAmount : selectedAmount}
+                  </Typography>
+                  {/* Impact summary */}
+                  <Box mt={1}>
+                    {(() => {
+                      const impact = getCurrentImpact();
+                      const impactItems = [];
+                      if (impact.children > 0) impactItems.push(`${impact.children} children`);
+                      if (impact.communities > 0) impactItems.push(`${impact.communities} communities`);
+                      if (impact.schools > 0) impactItems.push(`${impact.schools} schools`);
+                      if (impact.meals > 0) impactItems.push(`${impact.meals} meals`);
+                      if (impact.checkups > 0) impactItems.push(`${impact.checkups} checkups`);
+                      return impactItems.length > 0 ? (
+                        <Typography variant="caption" sx={{ color: 'var(--primary-green)' }}>
+                          Impact: {impactItems.join(', ')}
+                        </Typography>
+                      ) : (
+                        <Typography variant="caption" color="text.secondary">
+                          Impact will be calculated based on your donation amount
+                        </Typography>
+                      );
+                    })()}
+                  </Box>
+                </Box>
+              )}
 
               <FormControl fullWidth sx={{ mb: 3 }}>
                 <InputLabel>Payment Method</InputLabel>

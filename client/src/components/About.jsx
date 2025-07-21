@@ -191,24 +191,17 @@ export default function About() {
             </Box>
           </Grid>
           <Grid xs={12} md={6}>
-            <Box className="fade-in-up">
-              <Box
-                component="img"
-                src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80"
-                alt="Children learning"
-                sx={{
-                  width: '100%',
-                  height: 'auto',
-                  borderRadius: 'var(--radius-lg)',
-                  boxShadow: 'var(--shadow-lg)',
-                  transform: 'rotate(2deg)',
-                  transition: 'var(--transition)',
-                  '&:hover': {
-                    transform: 'rotate(0deg) scale(1.02)'
-                  }
-                }}
-              />
-            </Box>
+            <Box
+              component="img"
+              src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80"
+              alt="Children learning"
+              sx={{
+                width: '100%',
+                height: 'auto',
+                borderRadius: 'var(--radius-lg)',
+                boxShadow: 'var(--shadow-lg)'
+              }}
+            />
           </Grid>
         </Grid>
 

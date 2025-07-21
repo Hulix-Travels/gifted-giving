@@ -19,7 +19,7 @@ export default function Testimonials() {
 
   return (
     <Box id="stories" sx={{ py: { xs: 8, md: 12 }, bgcolor: '#f5f5f5' }}>
-      <Container maxWidth="lg">
+      <Container maxWidth={false} sx={{ px: 0 }}>
         <Typography variant="h3" component="h2" textAlign="center" sx={{ mb: 6, fontWeight: 700, color: '#01371f' }}>
           Success Stories
         </Typography>
@@ -46,13 +46,13 @@ export default function Testimonials() {
                   minWidth: 320,
                   maxWidth: 400,
                   flex: '0 0 auto',
-                  p: 4,
-                  bgcolor: '#fff',
-                  boxShadow: 3,
-                  position: 'relative',
+                p: 4,
+                bgcolor: '#fff',
+                boxShadow: 3,
+                position: 'relative',
                   scrollSnapAlign: 'start',
-                  '&:hover': { boxShadow: 6 },
-                  transition: 'box-shadow 0.3s ease'
+                '&:hover': { boxShadow: 6 },
+                transition: 'box-shadow 0.3s ease'
                 }}
               >
                 <FormatQuoteIcon 
@@ -91,7 +91,7 @@ export default function Testimonials() {
                   </Typography>
                 </CardContent>
               </Card>
-            ))}
+          ))}
           </Box>
         )}
       </Container>

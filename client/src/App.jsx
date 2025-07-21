@@ -21,15 +21,15 @@ function App() {
     <AuthProvider>
       <Router>
         <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-          <Header />
+        <Header />
           <Box sx={{ flex: 1 }}>
-            <Routes>
+        <Routes>
               <Route path="/dashboard" element={<UserDashboard />} />
               <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-              <Route path="/" element={<Home />} />
-            </Routes>
+          <Route path="/" element={<Home />} />
+        </Routes>
           </Box>
-          <Footer />
+        <Footer />
         </Box>
       </Router>
     </AuthProvider>

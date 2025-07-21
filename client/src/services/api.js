@@ -15,25 +15,25 @@ const apiRequest = async (endpoint, options = {}) => {
     ...options,
   };
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
-  const contentType = response.headers.get('content-type');
-  if (!contentType || !contentType.includes('application/json')) {
-    // Not JSON, probably an error page or server error
-    const text = await response.text();
-    throw new Error(`Server did not return JSON. Status: ${response.status}. Body: ${text.substring(0, 200)}`);
-  }
-  const data = await response.json();
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      // Not JSON, probably an error page or server error
+      const text = await response.text();
+      throw new Error(`Server did not return JSON. Status: ${response.status}. Body: ${text.substring(0, 200)}`);
+    }
+    const data = await response.json();
 
-  if (!response.ok) {
-    // Create a more detailed error object
-    const error = new Error(data.message || 'Something went wrong');
-    error.status = response.status;
-    error.errors = data.errors; // Include validation errors if present
-    error.responseData = data; // Include full response data for debugging
-    throw error;
-  }
+    if (!response.ok) {
+      // Create a more detailed error object
+      const error = new Error(data.message || 'Something went wrong');
+      error.status = response.status;
+      error.errors = data.errors; // Include validation errors if present
+      error.responseData = data; // Include full response data for debugging
+      throw error;
+    }
 
-  return data;
+    return data;
 };
 
 // Auth API

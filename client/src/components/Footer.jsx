@@ -162,14 +162,14 @@ export default function Footer() {
                     component="button"
                     onClick={() => scrollToSection(link.sectionId)}
                     sx={{ 
-                      color: 'rgba(255,255,255,0.7)', 
-                      textDecoration: 'none',
+                    color: 'rgba(255,255,255,0.7)', 
+                    textDecoration: 'none',
                       background: 'none',
                       border: 'none',
                       cursor: 'pointer',
                       fontSize: 'inherit',
                       fontFamily: 'inherit',
-                      '&:hover': { color: '#00ff8c' }
+                    '&:hover': { color: '#00ff8c' }
                     }}
                   >
                     {link.name}
