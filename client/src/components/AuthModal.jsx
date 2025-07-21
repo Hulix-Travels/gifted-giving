@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -15,8 +15,9 @@ import {
 } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
-export default function AuthModal({ open, onClose }) {
+export default function AuthModal({ open, onClose, initialLoginEmail = '', setLoginEmail }) {
   const [tab, setTab] = useState(0);
   const [loading, setLoading] = useState(false);
   const { login, register, error, clearError } = useAuth();
@@ -33,6 +34,18 @@ export default function AuthModal({ open, onClose }) {
     password: '',
     confirmPassword: ''
   });
+
+  const [registerSuccess, setRegisterSuccess] = useState(false);
+
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (open && initialLoginEmail) {
+      setTab(0); // Switch to login tab
+      setLoginData((prev) => ({ ...prev, email: initialLoginEmail }));
+      if (setLoginEmail) setLoginEmail(initialLoginEmail);
+    }
+  }, [open, initialLoginEmail, setLoginEmail]);
 
   const handleTabChange = (event, newValue) => {
     setTab(newValue);
@@ -66,7 +79,7 @@ export default function AuthModal({ open, onClose }) {
         email: registerData.email,
         password: registerData.password
       });
-      onClose();
+      setRegisterSuccess(true);
       setRegisterData({
         firstName: '',
         lastName: '',
@@ -74,6 +87,7 @@ export default function AuthModal({ open, onClose }) {
         password: '',
         confirmPassword: ''
       });
+      // Do NOT log in or close modal immediately
     } catch {
       // Error is handled by the auth context
     } finally {
@@ -92,6 +106,7 @@ export default function AuthModal({ open, onClose }) {
       password: '',
       confirmPassword: ''
     });
+    setRegisterSuccess(false);
   };
 
   return (
@@ -121,7 +136,14 @@ export default function AuthModal({ open, onClose }) {
       )}
 
       <DialogContent>
-        {tab === 0 ? (
+        {registerSuccess ? (
+          <Box sx={{ p: 2, textAlign: 'center' }}>
+            <Alert severity="success" sx={{ mb: 2 }}>
+              Registration successful! Please check your email to verify your account.
+            </Alert>
+            <Button variant="contained" color="primary" onClick={handleClose}>Close</Button>
+          </Box>
+        ) : tab === 0 ? (
           // Login Form
           <Box component="form" onSubmit={handleLogin} sx={{ mt: 2 }}>
             <TextField
@@ -129,7 +151,10 @@ export default function AuthModal({ open, onClose }) {
               label="Email"
               type="email"
               value={loginData.email}
-              onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
+              onChange={(e) => {
+                setLoginData({ ...loginData, email: e.target.value });
+                if (setLoginEmail) setLoginEmail(e.target.value);
+              }}
               required
               sx={{ mb: 2 }}
             />

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
@@ -34,6 +34,16 @@ export default function Header() {
   const [anchorEl, setAnchorEl] = useState(null);
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const [initialLoginEmail, setInitialLoginEmail] = useState('');
+
+  // Expose a global function to open the login modal and pre-fill email
+  useEffect(() => {
+    window.openLoginModal = (email) => {
+      setInitialLoginEmail(email || '');
+      setAuthModalOpen(true);
+    };
+    return () => { delete window.openLoginModal; };
+  }, []);
 
   const handleDrawerToggle = () => setDrawerOpen(!drawerOpen);
   const handleAuthModalOpen = () => setAuthModalOpen(true);
@@ -363,7 +373,7 @@ export default function Header() {
         </Toolbar>
       </AppBar>
 
-      <AuthModal open={authModalOpen} onClose={handleAuthModalClose} />
+      <AuthModal open={authModalOpen} onClose={handleAuthModalClose} initialLoginEmail={initialLoginEmail} setLoginEmail={setInitialLoginEmail} />
     </>
   );
 } 

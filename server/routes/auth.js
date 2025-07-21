@@ -4,6 +4,7 @@ const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
 const emailService = require('../services/emailService');
+const crypto = require('crypto');
 const router = express.Router();
 
 // Generate JWT Token
@@ -48,25 +49,35 @@ router.post('/register', [
       email,
       password,
       phone,
-      role: role || 'donor'
+      role: role || 'donor',
+      isEmailVerified: false
     });
+
+    // Generate email verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    user.emailVerificationToken = verificationToken;
+    user.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
 
     await user.save();
 
-    // Send welcome email
+    // Send email verification email
     try {
-      await emailService.sendWelcomeEmail(user);
+      const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email?token=${verificationToken}`;
+      await emailService.sendEmailVerificationEmail(user, verificationUrl);
     } catch (emailError) {
-      console.error('Failed to send welcome email:', emailError);
+      console.error('Failed to send verification email:', emailError);
       // Don't fail registration if email fails
     }
 
-    // Generate token
-    const token = generateToken(user._id);
+    // Optionally, send welcome email (after verification)
+    // await emailService.sendWelcomeEmail(user);
+
+    // Generate token (but only allow login after verification)
+    // const token = generateToken(user._id);
 
     res.status(201).json({
-      message: 'User registered successfully',
-      token,
+      message: 'User registered successfully. Please check your email to verify your account.',
+      // token,
       user: {
         id: user._id,
         firstName: user.firstName,
@@ -74,7 +85,8 @@ router.post('/register', [
         email: user.email,
         role: user.role,
         totalDonated: user.totalDonated,
-        donationCount: user.donationCount
+        donationCount: user.donationCount,
+        isEmailVerified: user.isEmailVerified
       }
     });
 
@@ -107,6 +119,10 @@ router.post('/login', [
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
       return res.status(400).json({ message: 'Invalid credentials' });
+    }
+    // Check if email is verified
+    if (!user.isEmailVerified) {
+      return res.status(403).json({ message: 'Please verify your email before logging in.' });
     }
 
     // Check password
@@ -316,6 +332,40 @@ router.post('/reset-password', [
       return res.status(400).json({ message: 'Invalid reset token' });
     }
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Add email verification route
+router.get('/verify-email', async (req, res) => {
+  const { token } = req.query;
+  if (!token) {
+    return res.status(400).json({ message: 'Verification token is required' });
+  }
+  try {
+    const user = await User.findOne({
+      emailVerificationToken: token,
+      emailVerificationExpires: { $gt: Date.now() }
+    });
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired verification token' });
+    }
+    const wasVerified = user.isEmailVerified;
+    user.isEmailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
+    await user.save();
+    // Send welcome email only if not previously verified
+    if (!wasVerified) {
+      try {
+        await emailService.sendWelcomeEmail(user);
+      } catch (emailError) {
+        console.error('Failed to send welcome email after verification:', emailError);
+      }
+    }
+    res.json({ message: 'Email verified successfully. You can now log in.' });
+  } catch (error) {
+    console.error('Email verification error:', error);
+    res.status(500).json({ message: 'Server error during email verification' });
   }
 });
 

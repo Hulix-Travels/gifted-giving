@@ -65,7 +65,8 @@ class EmailService {
         'password-reset.html',
         'donation-confirmation.html',
         'volunteer-application.html',
-        'newsletter.html'
+        'newsletter.html',
+        'email-verification.html' // <-- add this
       ];
 
       for (const file of templateFiles) {
@@ -111,6 +112,9 @@ class EmailService {
           break;
         case 'newsletter':
           defaultContent = this.getNewsletterTemplate();
+          break;
+        case 'email-verification':
+          defaultContent = this.getEmailVerificationTemplate();
           break;
         default:
           defaultContent = this.getDefaultTemplate();
@@ -417,6 +421,32 @@ class EmailService {
     `;
   }
 
+  getEmailVerificationTemplate() {
+    return [
+      '<!DOCTYPE html>',
+      '<html>',
+      '<head>',
+      '  <meta charset="UTF-8">',
+      '  <title>Email Verification</title>',
+      '</head>',
+      '<body style="font-family: Arial, sans-serif; background: #f5f5f5; padding: 32px;">',
+      '  <div style="max-width: 600px; margin: auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 32px;">',
+      '    <h2 style="color: #1a7f37;">Verify Your Email Address</h2>',
+      '    <p>Hi {{firstName}},</p>',
+      '    <p>Thank you for registering with Gifted Giving! Please verify your email address by clicking the button below:</p>',
+      '    <p style="text-align: center; margin: 32px 0;">',
+      '      <a href="{{verificationUrl}}" style="background: #1a7f37; color: #fff; padding: 12px 32px; border-radius: 4px; text-decoration: none; font-weight: bold;">Verify Email</a>',
+      '    </p>',
+      '    <p>If you did not create an account, you can safely ignore this email.</p>',
+      '    <p style="color: #888; font-size: 13px;">This link will expire in 24 hours.</p>',
+      '    <hr style="margin: 32px 0; border: none; border-top: 1px solid #eee;">',
+      '    <p style="font-size: 13px; color: #888;">&copy; Gifted Giving</p>',
+      '  </div>',
+      '</body>',
+      '</html>'
+    ].join('\n');
+  }
+
   async sendEmail(options) {
     try {
       if (!this.transporter) {
@@ -540,6 +570,19 @@ class EmailService {
     }
 
     return results;
+  }
+
+  async sendEmailVerificationEmail(user, verificationUrl) {
+    if (!this.transporter) throw new Error('Email transporter not initialized');
+    return this.sendEmail({
+      to: user.email,
+      subject: 'Verify your email address',
+      template: 'email-verification',
+      context: {
+        firstName: user.firstName,
+        verificationUrl
+      }
+    });
   }
 }
 

@@ -7,6 +7,7 @@ import Home from './components/Home';
 import AdminDashboard from './components/AdminDashboard';
 import FeedbackForm from './components/FeedbackForm';
 import UserDashboard from './components/UserDashboard';
+import VerifyEmail from './components/VerifyEmail';
 import { Box } from '@mui/material';
 
 function AdminRoute({ children }) {
@@ -24,8 +25,9 @@ function App() {
         <Header />
           <Box sx={{ flex: 1 }}>
         <Routes>
-              <Route path="/dashboard" element={<UserDashboard />} />
-              <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/dashboard" element={<UserDashboard />} />
+          <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
           <Route path="/" element={<Home />} />
         </Routes>
           </Box>
