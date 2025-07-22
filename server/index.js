@@ -30,10 +30,10 @@ app.use(cors({
     if (!origin) return callback(null, true);
     
     const allowedOrigins = [
-      'http://gifted-giving-frontend.s3-website.eu-north-1.amazonaws.com',
-      'https://gifted-giving-frontend.s3-website.eu-north-1.amazonaws.com',
+      // 'http://gifted-giving-frontend.s3-website.eu-north-1.amazonaws.com',
+      // 'https://gifted-giving-frontend.s3-website.eu-north-1.amazonaws.com',
       'https://d1eq5u6ppadyxk.cloudfront.net',
-      'http://d1eq5u6ppadyxk.cloudfront.net',
+      // 'http://d1eq5u6ppadyxk.cloudfront.net',
       'http://localhost:3000',
       'http://localhost:5173',
       'http://127.0.0.1:5173'
