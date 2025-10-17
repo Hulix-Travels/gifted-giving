@@ -46,9 +46,7 @@ import useLiveStats from '../hooks/useLiveStats';
 import formatShortNumber from '../utils/formatShortNumber';
 
 const paymentMethods = [
-  { value: 'stripe', label: 'Credit/Debit Card', icon: 'credit_card' },
-  { value: 'paypal', label: 'PayPal', icon: 'payment' },
-  { value: 'bank_transfer', label: 'Bank Transfer', icon: 'account_balance' }
+  { value: 'stripe', label: 'Credit/Debit Card', icon: 'credit_card' }
 ];
 
 export default function Donate() {
@@ -188,58 +186,8 @@ export default function Donate() {
       return;
     }
 
-    if (paymentMethod === 'stripe') {
-      setShowStripePayment(true);
-    } else {
-      // Handle other payment methods
-      try {
-        setLoading(true);
-        
-        const donationData = {
-          programId: selectedProgram,
-          amount,
-          currency: 'USD',
-          paymentMethod,
-          anonymous: user ? (anonymous || false) : true, // Force anonymous if not logged in
-          message: message || '',
-          recurring: {
-            isRecurring: recurring || false,
-            frequency: recurringFrequency || 'monthly'
-          }
-        };
-
-        const _response = await donationsAPI.create(donationData);
-        
-        setSnackbar({ 
-          open: true, 
-          message: 'Donation processed successfully! Thank you for your generosity.', 
-          severity: 'success' 
-        });
-
-        // Refetch programs after donation
-        if (typeof window !== 'undefined' && window.dispatchEvent) {
-          window.dispatchEvent(new Event('programs:refresh'));
-        }
-
-        // Update program metrics
-        await updateProgramMetrics(selectedProgram, amount);
-
-        // Reset form
-        setCustomAmount('');
-        setMessage('');
-        setAnonymous(false);
-        setRecurring(false);
-
-      } catch (error) {
-        setSnackbar({ 
-          open: true, 
-          message: error.response?.data?.message || 'Donation failed. Please try again.', 
-          severity: 'error' 
-        });
-      } finally {
-        setLoading(false);
-      }
-    }
+    // Always use Stripe for card payments
+    setShowStripePayment(true);
   };
 
   const handleStripeSuccess = (_paymentResult) => {
@@ -661,23 +609,17 @@ export default function Donate() {
                 </Box>
               )}
 
-              <FormControl fullWidth sx={{ mb: 3 }}>
-                <InputLabel>Payment Method</InputLabel>
-                <Select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  label="Payment Method"
-                >
-                  {paymentMethods.map((method) => (
-                    <MenuItem key={method.value} value={method.value}>
-                                          <Box display="flex" alignItems="center" gap={1}>
-                      {renderPaymentIcon(method.icon)}
-                      {method.label}
-                    </Box>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <Box sx={{ mb: 3, p: 2, bgcolor: '#f8f9fa', borderRadius: 2, border: '1px solid #e9ecef' }}>
+                <Box display="flex" alignItems="center" gap={2}>
+                  <CreditCard sx={{ color: '#666' }} />
+                  <Typography variant="body1" sx={{ fontWeight: 500, color: '#333' }}>
+                    Credit/Debit Card Payment
+                  </Typography>
+                </Box>
+                <Typography variant="body2" sx={{ color: '#666', mt: 1, fontSize: '0.9rem' }}>
+                  Secure payment processing powered by Stripe
+                </Typography>
+              </Box>
 
               {!user && (
                 <Alert severity="info" sx={{ mb: 3 }}>
@@ -738,50 +680,25 @@ export default function Donate() {
                 sx={{ mb: 4 }}
               />
 
-              {paymentMethod === 'stripe' ? (
-                <Box sx={{ mt: 4 }}>
-                  <StripePayment
-                    amount={customAmount ? parseFloat(customAmount) : selectedAmount}
-                    currency="usd"
-                    onSuccess={handleStripeSuccess}
-                    onError={handleStripeError}
-                    donationData={{
-                      programId: selectedProgram,
-                      anonymous: user ? (anonymous || false) : true, // Force anonymous if not logged in
-                      message: message || '',
-                      recurring: {
-                        isRecurring: recurring || false,
-                        frequency: recurringFrequency || 'monthly'
-                      },
-                      donorName: user && user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : 'Anonymous Donor',
-                      email: user && user.email ? user.email : ''
-                    }}
-                  />
-                </Box>
-              ) : (
-                <Button 
-                  variant="contained" 
-                  fullWidth
-                  size="large"
-                  onClick={handleDonation}
-                  disabled={loading || !selectedProgram}
-                  startIcon={renderButtonIcon()}
-                  sx={{
-                    background: 'var(--primary-green)',
-                    color: '#01371f',
-                    fontWeight: 700,
-                    py: 2,
-                    borderRadius: 3,
-                    fontSize: '1.1rem',
-                    '&:hover': {
-                      background: 'var(--dark-green)',
-                      transform: 'translateY(-2px)'
-                    }
+              <Box sx={{ mt: 3 }}>
+                <StripePayment
+                  amount={customAmount ? parseFloat(customAmount) : selectedAmount}
+                  currency="usd"
+                  onSuccess={handleStripeSuccess}
+                  onError={handleStripeError}
+                  donationData={{
+                    programId: selectedProgram,
+                    anonymous: user ? (anonymous || false) : true, // Force anonymous if not logged in
+                    message: message || '',
+                    recurring: {
+                      isRecurring: recurring || false,
+                      frequency: recurringFrequency || 'monthly'
+                    },
+                    donorName: user && user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : 'Anonymous Donor',
+                    email: user && user.email ? user.email : ''
                   }}
-                >
-                  {loading ? 'Processing...' : 'Complete Donation'}
-                </Button>
-              )}
+                />
+              </Box>
             </Card>
           </Grid>
         </Grid>

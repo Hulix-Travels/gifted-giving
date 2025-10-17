@@ -5,13 +5,14 @@ import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
-import { Menu as MenuIcon, AccountCircle } from '@mui/icons-material';
+import { Menu as MenuIcon, AccountCircle, ExpandMore, Home, Info, VolunteerActivism, Article, AdminPanelSettings } from '@mui/icons-material';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import Drawer from '@mui/material/Drawer';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
+import ListItemIcon from '@mui/material/ListItemIcon';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import { useTheme } from '@mui/material/styles';
@@ -20,10 +21,10 @@ import AuthModal from './AuthModal';
 import { Link, useNavigate } from 'react-router-dom';
 
 const navLinks = [
-  { label: 'About', href: '#about' },
-  { label: 'Programs', href: '#programs' },
-  { label: 'Stories', href: '#stories' },
-  { label: 'Volunteer', href: '#volunteer' },
+  { label: 'About', href: '#about', icon: Info },
+  { label: 'Programs', href: '#programs', icon: Home },
+  { label: 'Stories', href: '#stories', icon: Article },
+  { label: 'Volunteer', href: '#volunteer', icon: VolunteerActivism },
 ];
 
 export default function Header() {
@@ -32,6 +33,7 @@ export default function Header() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [navMenuAnchor, setNavMenuAnchor] = useState(null);
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [initialLoginEmail, setInitialLoginEmail] = useState('');
@@ -55,6 +57,14 @@ export default function Header() {
 
   const handleClose = () => {
     setAnchorEl(null);
+  };
+
+  const handleNavMenuOpen = (event) => {
+    setNavMenuAnchor(event.currentTarget);
+  };
+
+  const handleNavMenuClose = () => {
+    setNavMenuAnchor(null);
   };
 
   const handleLogout = () => {
@@ -113,9 +123,9 @@ export default function Header() {
                 src="/gifted_logo.png"
                 alt="Gifted Giving"
                 sx={{
-                  height: { xs: '120px', sm: '140px', md: '160px' },
+                  height: { xs: '100px', sm: '120px', md: '140px' },
                   width: 'auto',
-                  maxWidth: { xs: '200px', sm: '250px', md: '300px' },
+                  maxWidth: { xs: '180px', sm: '220px', md: '260px' },
                   objectFit: 'contain',
                   objectPosition: 'center',
                   transition: 'all 0.3s ease',
@@ -130,13 +140,17 @@ export default function Header() {
               <Typography 
                 variant="h6" 
                 sx={{ 
-                  fontWeight: 700, 
+                  fontWeight: 400, 
                   color: 'var(--primary-green)',
-                  fontSize: { xs: '1.1rem', md: '1.3rem' },
-                  ml: -0.5
+                  fontSize: { xs: '1.3rem', md: '1.5rem' },
+                  ml: -0.5,
+                  fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                  textTransform: 'lowercase',
+                  letterSpacing: '-0.02em',
+                  lineHeight: 1.2
                 }}
               >
-                Gifted Giving 
+                gifted<Box component="span" sx={{ fontWeight: 900, color: 'var(--dark-green)', fontSize: '1.1em' }}>giving</Box>
               </Typography>
             </Box>
           </Box>
@@ -164,29 +178,35 @@ export default function Header() {
                 }}
               >
                 <List sx={{ pt: 2 }}>
-                  {navLinks.map((item) => (
-                    <ListItem key={item.label} disablePadding>
-                      <ListItemButton 
-                        onClick={() => scrollToSection(item.href)}
-                        sx={{
-                          py: 2,
-                          px: 3,
-                          '&:hover': {
-                            background: 'var(--light-green)',
-                            color: 'var(--primary-green)'
-                          }
-                        }}
-                      >
-                        <ListItemText 
-                          primary={item.label} 
-                          sx={{ 
-                            fontWeight: 600,
-                            color: 'var(--primary-green)'
+                  {navLinks.map((item) => {
+                    const IconComponent = item.icon;
+                    return (
+                      <ListItem key={item.label} disablePadding>
+                        <ListItemButton 
+                          onClick={() => scrollToSection(item.href)}
+                          sx={{
+                            py: 2,
+                            px: 3,
+                            '&:hover': {
+                              background: 'var(--light-green)',
+                              color: 'var(--primary-green)'
+                            }
                           }}
-                        />
-                      </ListItemButton>
-                    </ListItem>
-                  ))}
+                        >
+                          <ListItemIcon sx={{ minWidth: 40, color: 'var(--primary-green)' }}>
+                            <IconComponent />
+                          </ListItemIcon>
+                          <ListItemText 
+                            primary={item.label} 
+                            sx={{ 
+                              fontWeight: 600,
+                              color: 'var(--primary-green)'
+                            }}
+                          />
+                        </ListItemButton>
+                      </ListItem>
+                    );
+                  })}
                   <Box sx={{ borderTop: '1px solid var(--light-gray)', mt: 2, pt: 2 }}>
                     {isAuthenticated ? (
                       <>
@@ -236,42 +256,72 @@ export default function Header() {
               </Drawer>
             </>
           ) : (
-            <Box display="flex" alignItems="center" gap={1} sx={{ ml: 'auto' }}>
-              {navLinks.map((item) => (
-                <Button 
-                  key={item.label} 
-                  onClick={() => scrollToSection(item.href)}
-                  sx={{ 
-                    color: 'var(--primary-green)', 
-                    fontWeight: 600,
-                    px: 2,
-                    py: 1,
+            <Box display="flex" alignItems="center" gap={2} sx={{ ml: 'auto' }}>
+              {/* Navigation Menu Dropdown */}
+              <Button
+                onClick={handleNavMenuOpen}
+                endIcon={<ExpandMore />}
+                sx={{
+                  color: 'var(--primary-green)',
+                  fontWeight: 600,
+                  px: 2,
+                  py: 1,
+                  borderRadius: 2,
+                  '&:hover': {
+                    background: 'var(--light-green)',
+                    transform: 'translateY(-1px)'
+                  }
+                }}
+              >
+                Menu
+              </Button>
+              <Menu
+                anchorEl={navMenuAnchor}
+                open={Boolean(navMenuAnchor)}
+                onClose={handleNavMenuClose}
+                PaperProps={{
+                  sx: {
+                    mt: 1,
+                    boxShadow: 'var(--shadow-lg)',
                     borderRadius: 2,
-                    '&:hover': {
-                      background: 'var(--light-green)',
-                      transform: 'translateY(-1px)'
-                    }
-                  }}
-                >
-                  {item.label}
-                </Button>
-              ))}
+                    border: '1px solid var(--light-gray)',
+                    minWidth: 200
+                  }
+                }}
+              >
+                {navLinks.map((item) => {
+                  const IconComponent = item.icon;
+                  return (
+                    <MenuItem 
+                      key={item.label}
+                      onClick={() => {
+                        scrollToSection(item.href);
+                        handleNavMenuClose();
+                      }}
+                      sx={{ 
+                        fontWeight: 600,
+                        py: 1.5,
+                        px: 2
+                      }}
+                    >
+                      <IconComponent sx={{ mr: 2, color: 'var(--primary-green)' }} />
+                      {item.label}
+                    </MenuItem>
+                  );
+                })}
+              </Menu>
               
               {isAuthenticated ? (
                 <>
-                  {/* Debug info */}
-                  <Box sx={{ mr: 2, fontSize: '12px', color: '#666' }}>
-                    Role: {user?.role || 'No role'}
-                  </Box>
                   {user?.role === 'admin' && (
                     <Button 
                       variant="contained" 
                       component={Link}
                       to="/admin"
+                      startIcon={<AdminPanelSettings />}
                       sx={{ 
                         background: '#ff9800',
                         color: 'white',
-                        mr: 2,
                         '&:hover': { background: '#f57c00' }
                       }}
                     >
@@ -286,7 +336,6 @@ export default function Header() {
                     onClick={handleMenu}
                     sx={{ 
                       color: 'var(--primary-green)',
-                      ml: 2,
                       '&:hover': {
                         background: 'var(--light-green)'
                       }
@@ -335,7 +384,6 @@ export default function Header() {
                     py: 1,
                     borderRadius: 2,
                     border: '2px solid var(--primary-green)',
-                    ml: 2,
                     '&:hover': {
                       background: 'var(--primary-green)',
                       color: 'var(--white)',
@@ -355,7 +403,6 @@ export default function Header() {
                   color: 'var(--primary-green)',
                   borderRadius: 3,
                   fontWeight: 700,
-                  ml: 2,
                   px: 4,
                   py: 1.5,
                   boxShadow: 'var(--shadow-md)',

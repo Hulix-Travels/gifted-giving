@@ -4,6 +4,9 @@ import Hero from './Hero';
 import About from './About';
 import Programs from './Programs';
 import Testimonials from './Testimonials';
+// import Partners from './Partners';
+import FAQ from './FAQ';
+import Newsletter from './Newsletter';
 import Volunteer from './Volunteer';
 import Donate from './Donate';
 import FeedbackForm from './FeedbackForm';
@@ -14,9 +17,12 @@ export default function Home() {
       <Hero />
       <About />
       <Programs />
-      <Testimonials />
-      <Volunteer />
       <Donate />
+      <Testimonials />
+      {/* <Partners /> */}
+      <FAQ />
+      <Newsletter />
+      <Volunteer />
       <FeedbackForm />
     </Box>
   );

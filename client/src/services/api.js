@@ -218,6 +218,37 @@ export const newsletterAPI = {
   }),
 };
 
+// Success Stories API
+export const successStoriesAPI = {
+  getAll: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiRequest(`/success-stories?${queryString}`);
+  },
+  
+  getById: (id) => apiRequest(`/success-stories/${id}`),
+  
+  create: (storyData) => apiRequest('/success-stories', {
+    method: 'POST',
+    body: JSON.stringify(storyData),
+  }),
+  
+  update: (id, storyData) => apiRequest(`/success-stories/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(storyData),
+  }),
+  
+  updateStatus: (id, status) => apiRequest(`/success-stories/${id}/status`, {
+    method: 'PUT',
+    body: JSON.stringify({ status }),
+  }),
+  
+  delete: (id) => apiRequest(`/success-stories/${id}`, {
+    method: 'DELETE',
+  }),
+  
+  getStats: () => apiRequest('/success-stories/stats'),
+};
+
 export default {
   auth: authAPI,
   programs: programsAPI,
@@ -226,5 +257,6 @@ export default {
   users: usersAPI,
   stripe: stripeAPI,
   newsletter: newsletterAPI,
+  successStories: successStoriesAPI,
   healthCheck,
 }; 

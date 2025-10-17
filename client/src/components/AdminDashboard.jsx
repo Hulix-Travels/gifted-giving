@@ -38,7 +38,20 @@ import {
   ListItemText,
   ListItemAvatar,
   Fab,
-  Tooltip
+  Tooltip,
+  Rating,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Stepper,
+  Step,
+  StepLabel,
+  StepContent,
+  FormHelperText,
+  InputAdornment,
+  Autocomplete,
+  LinearProgress,
+  Badge
 } from '@mui/material';
 import {
   Dashboard,
@@ -61,7 +74,22 @@ import {
   AttachMoney,
   Receipt,
   Star,
-  Refresh
+  Refresh,
+  ExpandMore,
+  Business,
+  Flag,
+  Category,
+  Description,
+  Timeline,
+  Assessment,
+  PhotoLibrary,
+  Settings,
+  Help,
+  Check,
+  Error,
+  Upload,
+  Image as ImageIcon,
+  Save
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { donationsAPI, volunteersAPI, programsAPI, newsletterAPI } from '../services/api';
@@ -249,6 +277,21 @@ export default function AdminDashboard() {
   });
   const [sendingNewsletter, setSendingNewsletter] = useState(false);
 
+  // Form validation and progress states
+  const [formErrors, setFormErrors] = useState({});
+  const [formProgress, setFormProgress] = useState(0);
+  const [activeStep, setActiveStep] = useState(0);
+  const [formSections, setFormSections] = useState({
+    basic: false,
+    details: false,
+    financial: false,
+    impact: false,
+    media: false
+  });
+
+  // Donation options state
+  const [donationOptions, setDonationOptions] = useState([]);
+
   useEffect(() => {
     if (user && user.role === 'admin') {
       loadDashboardData(donationsPage);
@@ -400,8 +443,138 @@ export default function AdminDashboard() {
   };
 
   // CRUD Operations
+  // Form validation functions
+  const validateField = (field, value, type = 'program') => {
+    const errors = {};
+    
+    if (type === 'program') {
+      switch (field) {
+        case 'name':
+          if (!value || value.trim().length < 3) {
+            errors.name = 'Program name must be at least 3 characters';
+          }
+          break;
+        case 'description':
+          if (!value || value.trim().length < 10) {
+            errors.description = 'Description must be at least 10 characters';
+          }
+          break;
+        case 'longDescription':
+          if (!value || value.trim().length < 50) {
+            errors.longDescription = 'Long description must be at least 50 characters';
+          }
+          break;
+        case 'category':
+          if (!value || !['education','health','nutrition','emergency','infrastructure'].includes(value)) {
+            errors.category = 'Please select a valid category';
+          }
+          break;
+        case 'targetAmount':
+          if (!value || isNaN(Number(value)) || Number(value) <= 0) {
+            errors.targetAmount = 'Target amount must be a positive number';
+          }
+          break;
+        case 'currency':
+          if (!value || !['USD','EUR','GBP','KES','UGX'].includes(value)) {
+            errors.currency = 'Please select a valid currency';
+          }
+          break;
+        case 'image':
+          if (!value || value.trim().length === 0) {
+            errors.image = 'Image URL is required';
+          }
+          break;
+        case 'country':
+          if (!value || value.trim().length === 0) {
+            errors.country = 'Country is required';
+          }
+          break;
+        case 'startDate':
+          if (!value) {
+            errors.startDate = 'Start date is required';
+          } else if (isNaN(Date.parse(value))) {
+            errors.startDate = 'Please enter a valid start date';
+          }
+          break;
+        case 'endDate':
+          if (!value) {
+            errors.endDate = 'End date is required';
+          } else if (isNaN(Date.parse(value))) {
+            errors.endDate = 'Please enter a valid end date';
+          }
+          break;
+        case 'status':
+          if (!value || !['active','completed','paused','upcoming'].includes(value)) {
+            errors.status = 'Please select a valid status';
+          }
+          break;
+      }
+    }
+    
+    return errors;
+  };
+
+  const validateForm = (data, type = 'program') => {
+    const errors = {};
+    
+    if (type === 'program') {
+      const fields = ['name', 'description', 'longDescription', 'category', 'targetAmount', 'currency', 'image', 'country', 'startDate', 'endDate', 'status'];
+      fields.forEach(field => {
+        let value;
+        if (field === 'country') {
+          value = data.location?.country;
+        } else if (field === 'startDate') {
+          value = data.duration?.startDate;
+        } else if (field === 'endDate') {
+          value = data.duration?.endDate;
+        } else {
+          value = data[field];
+        }
+        const fieldErrors = validateField(field, value, type);
+        Object.assign(errors, fieldErrors);
+      });
+    }
+    
+    return errors;
+  };
+
+  const calculateFormProgress = (data, type = 'program') => {
+    if (type === 'program') {
+      const requiredFields = [
+        'name', 'description', 'longDescription', 'category', 'targetAmount', 
+        'currency', 'image', 'location.country', 'duration.startDate', 'duration.endDate', 'status'
+      ];
+      
+      let completedFields = 0;
+      requiredFields.forEach(field => {
+        const value = field.includes('.') ? 
+          field.split('.').reduce((obj, key) => obj?.[key], data) : 
+          data[field];
+        
+        if (value && (typeof value === 'string' ? value.trim().length > 0 : true)) {
+          completedFields++;
+        }
+      });
+      
+      return Math.round((completedFields / requiredFields.length) * 100);
+    }
+    return 0;
+  };
+
   const handleCreate = (type) => {
     setDialogType('create');
+    setFormErrors({});
+    setFormProgress(0);
+    setActiveStep(0);
+    setFormSections({
+      basic: false,
+      details: false,
+      financial: false,
+      impact: false,
+      media: false
+    });
+    setDonationOptions([]);
+    
     if (type === 'volunteer') {
       setEditingData({
         firstName: '',
@@ -479,6 +652,14 @@ export default function AdminDashboard() {
     setDialogType('edit');
     setEditingData({ ...item });
     setSelectedItem({ type, data: item });
+    
+    // Load existing donation options if editing a program
+    if (type === 'program' && item.donationOptions) {
+      loadDonationOptionsFromJSON(item.donationOptions);
+    } else {
+      setDonationOptions([]);
+    }
+    
     setDialogOpen(true);
   };
 
@@ -512,29 +693,94 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleFieldChange = (field, value, nestedField = null) => {
+    let newData;
+    if (nestedField) {
+      newData = {
+        ...editingData,
+        [field]: { ...editingData[field], [nestedField]: value }
+      };
+    } else {
+      newData = { ...editingData, [field]: value };
+    }
+    
+    setEditingData(newData);
+    
+    // Real-time validation
+    if (selectedItem?.type === 'program') {
+      const fieldErrors = validateField(field, value, 'program');
+      setFormErrors(prev => ({ ...prev, ...fieldErrors }));
+      
+      // Calculate progress
+      const progress = calculateFormProgress(newData, 'program');
+      setFormProgress(progress);
+    }
+  };
+
+  // Donation options functions
+  const addDonationOption = () => {
+    const newOption = {
+      id: Date.now(),
+      amount: '',
+      description: '',
+      impact: ''
+    };
+    setDonationOptions([...donationOptions, newOption]);
+  };
+
+  const removeDonationOption = (id) => {
+    setDonationOptions(donationOptions.filter(option => option.id !== id));
+  };
+
+  const updateDonationOption = (id, field, value) => {
+    setDonationOptions(donationOptions.map(option => 
+      option.id === id ? { ...option, [field]: value } : option
+    ));
+  };
+
+  const convertDonationOptionsToJSON = () => {
+    const validOptions = donationOptions.filter(option => 
+      option.amount && option.description && option.impact
+    );
+    return validOptions.map(option => ({
+      amount: parseFloat(option.amount),
+      description: option.description,
+      impact: option.impact
+    }));
+  };
+
+  const loadDonationOptionsFromJSON = (jsonData) => {
+    try {
+      const options = typeof jsonData === 'string' ? JSON.parse(jsonData) : jsonData;
+      if (Array.isArray(options)) {
+        const formattedOptions = options.map((option, index) => ({
+          id: Date.now() + index,
+          amount: option.amount?.toString() || '',
+          description: option.description || '',
+          impact: option.impact || ''
+        }));
+        setDonationOptions(formattedOptions);
+      }
+    } catch (error) {
+      console.error('Error parsing donation options:', error);
+      setDonationOptions([]);
+    }
+  };
+
   const handleSave = async () => {
     // Frontend validation based on item type
     if (selectedItem?.type === 'program') {
-      const errors = [];
-      const d = editingData;
-      if (!d.name || d.name.trim().length < 3) errors.push('Program name (min 3 chars)');
-      if (!d.description || d.description.trim().length < 10) errors.push('Description (min 10 chars)');
-      if (!d.longDescription || d.longDescription.trim().length < 50) errors.push('Long Description (min 50 chars)');
-      if (!d.category || !['education','health','nutrition','emergency','infrastructure'].includes(d.category)) errors.push('Category');
-      if (!d.targetAmount || isNaN(Number(d.targetAmount)) || Number(d.targetAmount) <= 0) errors.push('Target Amount (>0)');
-      if (!d.currency || !['USD','EUR','GBP','KES','UGX'].includes(d.currency)) errors.push('Currency');
-      if (!d.image || d.image.trim().length === 0) errors.push('Image URL');
-      if (!d.location || !d.location.country || d.location.country.trim().length === 0) errors.push('Country');
-      if (!d.duration || !d.duration.startDate) errors.push('Start Date');
-      if (!d.duration || !d.duration.endDate) errors.push('End Date');
-      if (!d.status || !['active','completed','paused','upcoming'].includes(d.status)) errors.push('Status');
-      // Date format check
-      if (d.duration && d.duration.startDate && isNaN(Date.parse(d.duration.startDate))) errors.push('Valid Start Date');
-      if (d.duration && d.duration.endDate && isNaN(Date.parse(d.duration.endDate))) errors.push('Valid End Date');
-      if (errors.length > 0) {
-        setSnackbar({ open: true, message: 'Missing/Invalid: ' + errors.join(', '), severity: 'error' });
+      const errors = validateForm(editingData, 'program');
+      if (Object.keys(errors).length > 0) {
+        setFormErrors(errors);
+        setSnackbar({ 
+          open: true, 
+          message: 'Please fix the validation errors before saving', 
+          severity: 'error' 
+        });
         return;
       }
+      setFormErrors({});
     }
     
     // For volunteers, we don't need validation since we're only editing specific fields
@@ -542,6 +788,11 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
       let payload = { ...editingData };
+      
+      // Convert donation options to JSON format for programs
+      if (selectedItem?.type === 'program') {
+        payload.donationOptions = convertDonationOptionsToJSON();
+      }
       // Ensure nested objects are present
       if (!payload.location) payload.location = {};
       if (!payload.duration) payload.duration = {};
@@ -727,6 +978,38 @@ export default function AdminDashboard() {
             setStories(data.stories || []);
             setStoriesTotalPages(data.totalPages || 1);
           });
+      });
+  };
+
+  const handleUpdateStoryStatus = (storyId, status) => {
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    fetch(`${API_BASE_URL}/success-stories/${storyId}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status })
+    })
+      .then(res => res.json())
+      .then(() => {
+        // Refetch stories
+        fetch(`${API_BASE_URL}/success-stories?page=${storiesPage}&limit=${storiesLimit}`)
+          .then(res => res.json())
+          .then(data => {
+            setStories(data.stories || []);
+            setStoriesTotalPages(data.totalPages || 1);
+          });
+        
+        setSnackbar({
+          open: true,
+          message: `Story ${status} successfully`,
+          severity: 'success'
+        });
+      })
+      .catch(() => {
+        setSnackbar({
+          open: true,
+          message: 'Failed to update story status',
+          severity: 'error'
+        });
       });
   };
 
@@ -1553,24 +1836,127 @@ export default function AdminDashboard() {
           {/* Success Stories Tab */}
           <TabPanel value={tabValue} index={5}>
             <Box sx={{ mt: 4 }}>
-              <Typography variant="h5" sx={{ mb: 2 }}>Success Stories</Typography>
-              <Button variant="contained" sx={{ mb: 2 }} onClick={() => { setEditingStory(null); setStoryDialogOpen(true); }}>Add Story</Button>
+              <Typography variant="h5" sx={{ mb: 2 }}>Review Success Stories</Typography>
+              <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
+                Review and approve user-submitted success stories. Only approved stories will appear on the public website.
+              </Typography>
+              
               {stories.length === 0 ? (
-                <Typography>No stories yet.</Typography>
+                <Typography>No stories to review yet.</Typography>
               ) : (
                 <>
                   {stories.map(story => (
-                    <Paper key={story._id} sx={{ mb: 2, p: 2 }}>
-                      <Typography variant="h6">{story.title}</Typography>
-                      <Typography variant="body2" sx={{ mb: 1 }}>{story.author} {story.date ? '(' + new Date(story.date).toLocaleDateString() + ')' : ''}</Typography>
-                      <Typography variant="body1" sx={{ mb: 1 }}>{story.content}</Typography>
-                      {story.image && <img src={story.image} alt="story" style={{ maxWidth: '100%', maxHeight: 200, marginBottom: 8 }} />}
-                      <Box>
-                        <Button size="small" onClick={() => { setEditingStory(story); setStoryDialogOpen(true); }} sx={{ mr: 1 }}>Edit</Button>
-                        <Button size="small" color="error" onClick={() => handleDeleteStory(story._id)}>Delete</Button>
+                    <Paper key={story._id} sx={{ mb: 2, p: 3, border: story.status === 'pending' ? '2px solid #ff9800' : story.status === 'approved' ? '2px solid #4caf50' : '2px solid #f44336' }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                        <Box>
+                          <Typography variant="h6">{story.title}</Typography>
+                          <Typography variant="body2" sx={{ mb: 1 }}>
+                            By: {story.author} • {story.email} • {story.date ? new Date(story.date).toLocaleDateString() : ''}
+                          </Typography>
+                          {story.category && (
+                            <Typography variant="caption" sx={{ 
+                              display: 'inline-block', 
+                              bgcolor: 'primary.light', 
+                              color: 'primary.contrastText', 
+                              px: 1, 
+                              py: 0.5, 
+                              borderRadius: 1,
+                              mb: 1
+                            }}>
+                              {story.category}
+                            </Typography>
+                          )}
+                          {story.rating && (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                              <Typography variant="caption">Rating:</Typography>
+                              <Rating value={story.rating} readOnly size="small" />
+                            </Box>
+                          )}
+                          {story.location && (
+                            <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+                              Location: {story.location}
+                            </Typography>
+                          )}
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <Chip 
+                            label={story.status} 
+                            color={story.status === 'pending' ? 'warning' : story.status === 'approved' ? 'success' : 'error'}
+                            size="small"
+                          />
+                        </Box>
+                      </Box>
+                      
+                      <Typography variant="body1" sx={{ mb: 2, lineHeight: 1.6 }}>
+                        {story.content}
+                      </Typography>
+                      
+                      {story.image && (
+                        <Box sx={{ mb: 2 }}>
+                          <img src={story.image} alt="story" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 8 }} />
+                        </Box>
+                      )}
+                      
+                      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                        {story.status === 'pending' && (
+                          <>
+                            <Button 
+                              size="small" 
+                              variant="contained" 
+                              color="success"
+                              onClick={() => handleUpdateStoryStatus(story._id, 'approved')}
+                            >
+                              Approve
+                            </Button>
+                            <Button 
+                              size="small" 
+                              variant="contained" 
+                              color="error"
+                              onClick={() => handleUpdateStoryStatus(story._id, 'rejected')}
+                            >
+                              Reject
+                            </Button>
+                          </>
+                        )}
+                        {story.status === 'approved' && (
+                          <Button 
+                            size="small" 
+                            variant="outlined" 
+                            color="warning"
+                            onClick={() => handleUpdateStoryStatus(story._id, 'pending')}
+                          >
+                            Unapprove
+                          </Button>
+                        )}
+                        {story.status === 'rejected' && (
+                          <Button 
+                            size="small" 
+                            variant="outlined" 
+                            color="success"
+                            onClick={() => handleUpdateStoryStatus(story._id, 'approved')}
+                          >
+                            Approve
+                          </Button>
+                        )}
+                        <Button 
+                          size="small" 
+                          variant="outlined" 
+                          onClick={() => { setEditingStory(story); setStoryDialogOpen(true); }}
+                        >
+                          Edit
+                        </Button>
+                        <Button 
+                          size="small" 
+                          color="error" 
+                          variant="outlined"
+                          onClick={() => handleDeleteStory(story._id)}
+                        >
+                          Delete
+                        </Button>
                       </Box>
                     </Paper>
                   ))}
+                  
                   <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mt: 2, gap: 2 }}>
                     <Button
                       variant="outlined"
@@ -1594,9 +1980,10 @@ export default function AdminDashboard() {
                   </Box>
                 </>
               )}
-              {/* Story Dialog */}
-              <Dialog open={storyDialogOpen} onClose={() => setStoryDialogOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle>{editingStory ? 'Edit Story' : 'Add Story'}</DialogTitle>
+              
+              {/* Story Edit Dialog */}
+              <Dialog open={storyDialogOpen} onClose={() => setStoryDialogOpen(false)} maxWidth="md" fullWidth>
+                <DialogTitle>Edit Story</DialogTitle>
                 <DialogContent>
                   <TextField
                     label="Title"
@@ -1612,7 +1999,39 @@ export default function AdminDashboard() {
                     value={editingStory?.author || ''}
                     onChange={e => setEditingStory({ ...editingStory, author: e.target.value })}
                   />
-                  <ImageUploadField label="Image" value={editingStory?.image || ''} onChange={val => setEditingStory({ ...editingStory, image: val })} disabled={!!editingStory && !editingStory._id && dialogType === 'view'} />
+                  <TextField
+                    label="Email"
+                    fullWidth
+                    sx={{ mb: 2 }}
+                    value={editingStory?.email || ''}
+                    onChange={e => setEditingStory({ ...editingStory, email: e.target.value })}
+                  />
+                  <TextField
+                    label="Category"
+                    fullWidth
+                    sx={{ mb: 2 }}
+                    value={editingStory?.category || ''}
+                    onChange={e => setEditingStory({ ...editingStory, category: e.target.value })}
+                  />
+                  <TextField
+                    label="Location"
+                    fullWidth
+                    sx={{ mb: 2 }}
+                    value={editingStory?.location || ''}
+                    onChange={e => setEditingStory({ ...editingStory, location: e.target.value })}
+                  />
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" sx={{ mb: 1 }}>Rating:</Typography>
+                    <Rating
+                      value={editingStory?.rating || 5}
+                      onChange={(event, newValue) => setEditingStory({ ...editingStory, rating: newValue })}
+                    />
+                  </Box>
+                  <ImageUploadField 
+                    label="Image" 
+                    value={editingStory?.image || ''} 
+                    onChange={val => setEditingStory({ ...editingStory, image: val })} 
+                  />
                   <TextField
                     label="Content"
                     fullWidth
@@ -1630,6 +2049,17 @@ export default function AdminDashboard() {
                       onChange={e => setEditingStory({ ...editingStory, featured: e.target.checked })}
                     />
                   </Box>
+                  <FormControl fullWidth sx={{ mb: 2 }}>
+                    <InputLabel>Status</InputLabel>
+                    <Select
+                      value={editingStory?.status || 'pending'}
+                      onChange={e => setEditingStory({ ...editingStory, status: e.target.value })}
+                    >
+                      <MenuItem value="pending">Pending</MenuItem>
+                      <MenuItem value="approved">Approved</MenuItem>
+                      <MenuItem value="rejected">Rejected</MenuItem>
+                    </Select>
+                  </FormControl>
                 </DialogContent>
                 <DialogActions>
                   <Button onClick={() => setStoryDialogOpen(false)}>Cancel</Button>
@@ -1666,42 +2096,58 @@ export default function AdminDashboard() {
             {/* Newsletter Stats */}
             <Grid container spacing={2} sx={{ mb: 3 }}>
               <Grid item xs={12} sm={6} md={3}>
-                <Card sx={{ background: 'linear-gradient(135deg, #00ff8c 0%, #00e67a 100%)', color: '#01371f' }}>
+                <Card sx={{ 
+                  background: 'linear-gradient(135deg, #f0f9f4 0%, #e8f5e8 100%)', 
+                  color: '#2e7d32',
+                  border: '1px solid #c8e6c9'
+                }}>
                   <CardContent>
-                    <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                    <Typography variant="h4" sx={{ fontWeight: 600 }}>
                       {newsletterStats.totalSubscribers}
                     </Typography>
-                    <Typography variant="body2">Active Subscribers</Typography>
+                    <Typography variant="body2" sx={{ color: '#4caf50' }}>Active Subscribers</Typography>
                   </CardContent>
                 </Card>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Card sx={{ background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%)', color: '#fff' }}>
+                <Card sx={{ 
+                  background: 'linear-gradient(135deg, #fef7f7 0%, #fce4ec 100%)', 
+                  color: '#c62828',
+                  border: '1px solid #ffcdd2'
+                }}>
                   <CardContent>
-                    <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                    <Typography variant="h4" sx={{ fontWeight: 600 }}>
                       {newsletterStats.totalUnsubscribed}
                     </Typography>
-                    <Typography variant="body2">Unsubscribed</Typography>
+                    <Typography variant="body2" sx={{ color: '#f44336' }}>Unsubscribed</Typography>
                   </CardContent>
                 </Card>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Card sx={{ background: 'linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%)', color: '#fff' }}>
+                <Card sx={{ 
+                  background: 'linear-gradient(135deg, #f3f8ff 0%, #e3f2fd 100%)', 
+                  color: '#1565c0',
+                  border: '1px solid #bbdefb'
+                }}>
                   <CardContent>
-                    <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                    <Typography variant="h4" sx={{ fontWeight: 600 }}>
                       {newsletterStats.newThisMonth}
                     </Typography>
-                    <Typography variant="body2">New This Month</Typography>
+                    <Typography variant="body2" sx={{ color: '#2196f3' }}>New This Month</Typography>
                   </CardContent>
                 </Card>
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <Card sx={{ background: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', color: '#01371f' }}>
+                <Card sx={{ 
+                  background: 'linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%)', 
+                  color: '#424242',
+                  border: '1px solid #e0e0e0'
+                }}>
                   <CardContent>
-                    <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                    <Typography variant="h4" sx={{ fontWeight: 600 }}>
                       {newsletterStats.totalEmails}
                     </Typography>
-                    <Typography variant="body2">Total Emails</Typography>
+                    <Typography variant="body2" sx={{ color: '#757575' }}>Total Emails</Typography>
                   </CardContent>
                 </Card>
               </Grid>
@@ -1792,532 +2238,645 @@ export default function AdminDashboard() {
           <DialogContent>
             {selectedItem?.type === 'program' && (
               <Box sx={{ pt: 2 }}>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
-                      label="Program Name"
-                      value={dialogType === 'view' ? selectedItem.data?.name || '' : editingData.name || ''}
-                      onChange={(e) => setEditingData({...editingData, name: e.target.value})}
-                      disabled={dialogType === 'view'}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <FormControl fullWidth>
-                      <InputLabel>Category</InputLabel>
-                      <Select
-                        value={dialogType === 'view' ? selectedItem.data?.category || '' : editingData.category || ''}
-                        onChange={(e) => setEditingData({...editingData, category: e.target.value})}
-                        disabled={dialogType === 'view'}
-                        label="Category"
-                      >
-                        <MenuItem value="education">Education</MenuItem>
-                        <MenuItem value="health">Health</MenuItem>
-                        <MenuItem value="nutrition">Nutrition</MenuItem>
-                        <MenuItem value="emergency">Emergency</MenuItem>
-                        <MenuItem value="infrastructure">Infrastructure</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      multiline
-                      rows={3}
-                      label="Description"
-                      value={dialogType === 'view' ? selectedItem.data?.description || '' : editingData.description || ''}
-                      onChange={(e) => setEditingData({...editingData, description: e.target.value})}
-                      disabled={dialogType === 'view'}
-                    />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      multiline
-                      rows={4}
-                      label="Long Description"
-                      value={dialogType === 'view' ? selectedItem.data?.longDescription || '' : editingData.longDescription || ''}
-                      onChange={(e) => setEditingData({...editingData, longDescription: e.target.value})}
-                      disabled={dialogType === 'view'}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Target Amount"
-                      value={dialogType === 'view' ? selectedItem.data?.targetAmount || '' : editingData.targetAmount || ''}
-                      onChange={(e) => setEditingData({...editingData, targetAmount: e.target.value})}
-                      disabled={dialogType === 'view'}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Current Amount"
-                      value={dialogType === 'view' ? selectedItem.data?.currentAmount || 0 : editingData.currentAmount || 0}
-                      onChange={(e) => setEditingData({...editingData, currentAmount: e.target.value})}
-                      disabled={dialogType === 'view'}
-                      InputProps={{
-                        startAdornment: <Typography variant="body2" sx={{ mr: 1 }}>$</Typography>,
-                      }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <FormControl fullWidth>
-                      <InputLabel>Currency</InputLabel>
-                      <Select
-                        value={dialogType === 'view' ? selectedItem.data?.currency || 'USD' : editingData.currency || 'USD'}
-                        onChange={(e) => setEditingData({...editingData, currency: e.target.value})}
-                        disabled={dialogType === 'view'}
-                        label="Currency"
-                      >
-                        <MenuItem value="USD">USD</MenuItem>
-                        <MenuItem value="EUR">EUR</MenuItem>
-                        <MenuItem value="GBP">GBP</MenuItem>
-                        <MenuItem value="KES">KES</MenuItem>
-                        <MenuItem value="UGX">UGX</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
-                      label="Country"
-                      value={dialogType === 'view' ? selectedItem.data?.location?.country || '' : editingData.location?.country || ''}
-                      onChange={(e) => setEditingData({
-                        ...editingData,
-                        location: { ...editingData.location, country: e.target.value }
-                      })}
-                      disabled={dialogType === 'view'}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={3}>
-                    <TextField
-                      fullWidth
-                      type="date"
-                      label="Start Date"
-                      InputLabelProps={{ shrink: true }}
-                      value={dialogType === 'view' ? selectedItem.data?.duration?.startDate || '' : editingData.duration?.startDate || ''}
-                      onChange={(e) => setEditingData({
-                        ...editingData,
-                        duration: { ...editingData.duration, startDate: e.target.value }
-                      })}
-                      disabled={dialogType === 'view'}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={3}>
-                    <TextField
-                      fullWidth
-                      type="date"
-                      label="End Date"
-                      InputLabelProps={{ shrink: true }}
-                      value={dialogType === 'view' ? selectedItem.data?.duration?.endDate || '' : editingData.duration?.endDate || ''}
-                      onChange={(e) => setEditingData({
-                        ...editingData,
-                        duration: { ...editingData.duration, endDate: e.target.value }
-                      })}
-                      disabled={dialogType === 'view'}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <ImageUploadField label="Image" value={dialogType === 'view' ? selectedItem.data?.image || '' : editingData.image || ''} onChange={val => setEditingData({...editingData, image: val })} disabled={dialogType === 'view'} />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <FormControl fullWidth>
-                      <InputLabel>Status</InputLabel>
-                      <Select
-                        value={dialogType === 'view' ? selectedItem.data?.status || 'active' : editingData.status || 'active'}
-                        onChange={(e) => setEditingData({...editingData, status: e.target.value})}
-                        disabled={dialogType === 'view'}
-                        required={dialogType === 'create'}
-                        label="Status"
-                      >
-                        <MenuItem value="active">Active</MenuItem>
-                        <MenuItem value="completed">Completed</MenuItem>
-                        <MenuItem value="paused">Paused</MenuItem>
-                        <MenuItem value="upcoming">Upcoming</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  
-                  {/* Additional Location Fields */}
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
-                      label="Region"
-                      value={dialogType === 'view' ? selectedItem.data?.location?.region || '' : editingData.location?.region || ''}
-                      onChange={(e) => setEditingData({
-                        ...editingData,
-                        location: { ...editingData.location, region: e.target.value }
-                      })}
-                      disabled={dialogType === 'view'}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
-                      label="City"
-                      value={dialogType === 'view' ? selectedItem.data?.location?.city || '' : editingData.location?.city || ''}
-                      onChange={(e) => setEditingData({
-                        ...editingData,
-                        location: { ...editingData.location, city: e.target.value }
-                      })}
-                      disabled={dialogType === 'view'}
-                    />
-                  </Grid>
-                  
-                  {/* Priority and Featured */}
-                  <Grid item xs={12} md={6}>
-                    <FormControl fullWidth>
-                      <InputLabel>Priority</InputLabel>
-                      <Select
-                        value={dialogType === 'view' ? selectedItem.data?.priority || 'medium' : editingData.priority || 'medium'}
-                        onChange={(e) => setEditingData({...editingData, priority: e.target.value})}
-                        disabled={dialogType === 'view'}
-                        label="Priority"
-                      >
-                        <MenuItem value="low">Low</MenuItem>
-                        <MenuItem value="medium">Medium</MenuItem>
-                        <MenuItem value="high">High</MenuItem>
-                        <MenuItem value="urgent">Urgent</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <FormControl fullWidth>
-                      <InputLabel>Featured</InputLabel>
-                      <Select
-                        value={dialogType === 'view' ? selectedItem.data?.featured || false : editingData.featured || false}
-                        onChange={(e) => setEditingData({...editingData, featured: e.target.value})}
-                        disabled={dialogType === 'view'}
-                        label="Featured"
-                      >
-                        <MenuItem value={true}>Yes</MenuItem>
-                        <MenuItem value={false}>No</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  
-                  {/* Tags */}
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Tags (comma separated)"
-                      value={dialogType === 'view' ? (selectedItem.data?.tags || []).join(', ') : (editingData.tags || []).join(', ')}
-                      onChange={(e) => setEditingData({
-                        ...editingData, 
-                        tags: e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag)
-                      })}
-                      disabled={dialogType === 'view'}
-                      helperText="Enter tags separated by commas (e.g., education, children, school)"
-                    />
-                  </Grid>
-                  
-                  {/* Gallery URLs */}
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      multiline
-                      rows={3}
-                      label="Gallery URLs (one per line)"
-                      value={dialogType === 'view' ? (selectedItem.data?.gallery || []).join('\n') : (editingData.gallery || []).join('\n')}
-                      onChange={(e) => setEditingData({
-                        ...editingData, 
-                        gallery: e.target.value.split('\n').map(url => url.trim()).filter(url => url)
-                      })}
-                      disabled={dialogType === 'view'}
-                      helperText="Enter image URLs, one per line"
-                    />
-                  </Grid>
-                  
-                  {/* Impact Metrics */}
-                  <Grid item xs={12}>
-                    <Typography variant="h6" sx={{ mb: 2, mt: 2 }}>Impact Metrics</Typography>
-                  </Grid>
-                  <Grid item xs={12} md={3}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Children Helped"
-                      value={dialogType === 'view' ? selectedItem.data?.impactMetrics?.childrenHelped || 0 : editingData.impactMetrics?.childrenHelped || 0}
-                      onChange={(e) => setEditingData({
-                        ...editingData,
-                        impactMetrics: { ...editingData.impactMetrics, childrenHelped: parseInt(e.target.value) || 0 }
-                      })}
-                      disabled={dialogType === 'view'}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={3}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Communities Reached"
-                      value={dialogType === 'view' ? selectedItem.data?.impactMetrics?.communitiesReached || 0 : editingData.impactMetrics?.communitiesReached || 0}
-                      onChange={(e) => setEditingData({
-                        ...editingData,
-                        impactMetrics: { ...editingData.impactMetrics, communitiesReached: parseInt(e.target.value) || 0 }
-                      })}
-                      disabled={dialogType === 'view'}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={3}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Schools Built"
-                      value={dialogType === 'view' ? selectedItem.data?.impactMetrics?.schoolsBuilt || 0 : editingData.impactMetrics?.schoolsBuilt || 0}
-                      onChange={(e) => setEditingData({
-                        ...editingData,
-                        impactMetrics: { ...editingData.impactMetrics, schoolsBuilt: parseInt(e.target.value) || 0 }
-                      })}
-                      disabled={dialogType === 'view'}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={3}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Meals Provided"
-                      value={dialogType === 'view' ? selectedItem.data?.impactMetrics?.mealsProvided || 0 : editingData.impactMetrics?.mealsProvided || 0}
-                      onChange={(e) => setEditingData({
-                        ...editingData,
-                        impactMetrics: { ...editingData.impactMetrics, mealsProvided: parseInt(e.target.value) || 0 }
-                      })}
-                      disabled={dialogType === 'view'}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Medical Checkups"
-                      value={dialogType === 'view' ? selectedItem.data?.impactMetrics?.medicalCheckups || 0 : editingData.impactMetrics?.medicalCheckups || 0}
-                      onChange={(e) => setEditingData({
-                        ...editingData,
-                        impactMetrics: { ...editingData.impactMetrics, medicalCheckups: parseInt(e.target.value) || 0 }
-                      })}
-                      disabled={dialogType === 'view'}
-                    />
-                  </Grid>
-                  
-                  {/* Target Metrics */}
-                  <Grid item xs={12}>
-                    <Typography variant="h6" sx={{ mb: 2, mt: 2 }}>Target Metrics</Typography>
-                  </Grid>
-                  <Grid item xs={12} md={3}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Target Children to Help"
-                      value={dialogType === 'view' ? selectedItem.data?.targetMetrics?.childrenToHelp || 0 : editingData.targetMetrics?.childrenToHelp || 0}
-                      onChange={(e) => setEditingData({
-                        ...editingData,
-                        targetMetrics: { ...editingData.targetMetrics, childrenToHelp: parseInt(e.target.value) || 0 }
-                      })}
-                      disabled={dialogType === 'view'}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={3}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Target Communities to Reach"
-                      value={dialogType === 'view' ? selectedItem.data?.targetMetrics?.communitiesToReach || 0 : editingData.targetMetrics?.communitiesToReach || 0}
-                      onChange={(e) => setEditingData({
-                        ...editingData,
-                        targetMetrics: { ...editingData.targetMetrics, communitiesToReach: parseInt(e.target.value) || 0 }
-                      })}
-                      disabled={dialogType === 'view'}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={3}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Target Schools to Build"
-                      value={dialogType === 'view' ? selectedItem.data?.targetMetrics?.schoolsToBuild || 0 : editingData.targetMetrics?.schoolsToBuild || 0}
-                      onChange={(e) => setEditingData({
-                        ...editingData,
-                        targetMetrics: { ...editingData.targetMetrics, schoolsToBuild: parseInt(e.target.value) || 0 }
-                      })}
-                      disabled={dialogType === 'view'}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={3}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Target Meals to Provide"
-                      value={dialogType === 'view' ? selectedItem.data?.targetMetrics?.mealsToProvide || 0 : editingData.targetMetrics?.mealsToProvide || 0}
-                      onChange={(e) => setEditingData({
-                        ...editingData,
-                        targetMetrics: { ...editingData.targetMetrics, mealsToProvide: parseInt(e.target.value) || 0 }
-                      })}
-                      disabled={dialogType === 'view'}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Target Medical Checkups"
-                      value={dialogType === 'view' ? selectedItem.data?.targetMetrics?.medicalCheckupsToProvide || 0 : editingData.targetMetrics?.medicalCheckupsToProvide || 0}
-                      onChange={(e) => setEditingData({
-                        ...editingData,
-                        targetMetrics: { ...editingData.targetMetrics, medicalCheckupsToProvide: parseInt(e.target.value) || 0 }
-                      })}
-                      disabled={dialogType === 'view'}
-                    />
-                  </Grid>
-                  
-                  {/* Impact Per Dollar */}
-                  <Grid item xs={12}>
-                    <Typography variant="h6" sx={{ mb: 2, mt: 2 }}>Impact Per Dollar</Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      Define how much impact each dollar creates
+                {/* Form Progress Indicator */}
+                {dialogType === 'create' && (
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Progress: {formProgress}% complete
                     </Typography>
-                  </Grid>
-                  <Grid item xs={12} md={2.4}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Children per $1"
-                      value={dialogType === 'view' ? selectedItem.data?.impactPerDollar?.children || 0 : editingData.impactPerDollar?.children || 0}
-                      onChange={(e) => setEditingData({
-                        ...editingData,
-                        impactPerDollar: { ...editingData.impactPerDollar, children: parseFloat(e.target.value) || 0 }
-                      })}
-                      disabled={dialogType === 'view'}
-                      inputProps={{ step: 0.01 }}
+                    <LinearProgress 
+                      variant="determinate" 
+                      value={formProgress} 
+                      sx={{ mt: 1 }}
                     />
-                  </Grid>
-                  <Grid item xs={12} md={2.4}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Communities per $1"
-                      value={dialogType === 'view' ? selectedItem.data?.impactPerDollar?.communities || 0 : editingData.impactPerDollar?.communities || 0}
-                      onChange={(e) => setEditingData({
-                        ...editingData,
-                        impactPerDollar: { ...editingData.impactPerDollar, communities: parseFloat(e.target.value) || 0 }
-                      })}
-                      disabled={dialogType === 'view'}
-                      inputProps={{ step: 0.01 }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={2.4}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Schools per $1"
-                      value={dialogType === 'view' ? selectedItem.data?.impactPerDollar?.schools || 0 : editingData.impactPerDollar?.schools || 0}
-                      onChange={(e) => setEditingData({
-                        ...editingData,
-                        impactPerDollar: { ...editingData.impactPerDollar, schools: parseFloat(e.target.value) || 0 }
-                      })}
-                      disabled={dialogType === 'view'}
-                      inputProps={{ step: 0.01 }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={2.4}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Meals per $1"
-                      value={dialogType === 'view' ? selectedItem.data?.impactPerDollar?.meals || 0 : editingData.impactPerDollar?.meals || 0}
-                      onChange={(e) => setEditingData({
-                        ...editingData,
-                        impactPerDollar: { ...editingData.impactPerDollar, meals: parseFloat(e.target.value) || 0 }
-                      })}
-                      disabled={dialogType === 'view'}
-                      inputProps={{ step: 0.01 }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={2.4}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Checkups per $1"
-                      value={dialogType === 'view' ? selectedItem.data?.impactPerDollar?.checkups || 0 : editingData.impactPerDollar?.checkups || 0}
-                      onChange={(e) => setEditingData({
-                        ...editingData,
-                        impactPerDollar: { ...editingData.impactPerDollar, checkups: parseFloat(e.target.value) || 0 }
-                      })}
-                      disabled={dialogType === 'view'}
-                      inputProps={{ step: 0.01 }}
-                    />
-                  </Grid>
-                  
-                  {/* Donation Options */}
-                  <Grid item xs={12}>
-                    <Typography variant="h6" sx={{ mb: 2, mt: 2 }}>Donation Options</Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      Add predefined donation amounts and their descriptions
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      multiline
-                      rows={6}
-                      label="Donation Options"
-                      value={dialogType === 'view' ? JSON.stringify(selectedItem.data?.donationOptions || [], null, 2) : (typeof editingData.donationOptions === 'string' ? editingData.donationOptions : JSON.stringify(editingData.donationOptions || [], null, 2))}
-                      onChange={(e) => {
-                        setEditingData({...editingData, donationOptions: e.target.value});
-                      }}
-                      disabled={dialogType === 'view'}
-                      helperText="Enter JSON format: [{'amount': 25, 'description': 'Monthly Support', 'impact': 'Helps one child'}]"
-                    />
-                    {dialogType !== 'view' && (
-                      <Button
-                        size="small"
-                        onClick={() => {
-                          try {
-                            const parsed = JSON.parse(editingData.donationOptions || '[]');
-                            setEditingData({...editingData, donationOptions: JSON.stringify(parsed, null, 2)});
-                          } catch (error) {
-                            setSnackbar({ open: true, message: 'Invalid JSON format', severity: 'error' });
-                          }
-                        }}
-                        sx={{ mt: 1 }}
-                      >
-                        Format JSON
-                      </Button>
-                    )}
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <Button
-                      variant="outlined"
-                      color="primary"
-                      disabled={dialogType === 'view'}
-                      sx={{ mb: 2 }}
-                      onClick={() => {
-                        const ta = parseFloat(editingData.targetAmount) || 1;
-                        setEditingData({
-                          ...editingData,
-                          impactPerDollar: {
-                            children: (editingData.targetMetrics?.childrenToHelp || 0) / ta,
-                            communities: (editingData.targetMetrics?.communitiesToReach || 0) / ta,
-                            schools: (editingData.targetMetrics?.schoolsToBuild || 0) / ta,
-                            meals: (editingData.targetMetrics?.mealsToProvide || 0) / ta,
-                            checkups: (editingData.targetMetrics?.medicalCheckupsToProvide || 0) / ta,
-                          },
-                          impactMetrics: {
-                            childrenHelped: editingData.targetMetrics?.childrenToHelp || 0,
-                            communitiesReached: editingData.targetMetrics?.communitiesToReach || 0,
-                            schoolsBuilt: editingData.targetMetrics?.schoolsToBuild || 0,
-                            mealsProvided: editingData.targetMetrics?.mealsToProvide || 0,
-                            medicalCheckups: editingData.targetMetrics?.medicalCheckupsToProvide || 0
-                          }
-                        });
-                      }}
-                    >
-                      Auto-calculate Impact Per Dollar
-                    </Button>
-                  </Grid>
-                </Grid>
+                  </Box>
+                )}
+
+                {/* Basic Information Section */}
+                <Accordion 
+                  expanded={formSections.basic} 
+                  onChange={() => setFormSections(prev => ({ ...prev, basic: !prev.basic }))}
+                  sx={{ mb: 2 }}
+                >
+                  <AccordionSummary expandIcon={<ExpandMore />}>
+                    <Typography variant="h6">Basic Information</Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Grid container spacing={3}>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Program Name"
+                          value={dialogType === 'view' ? selectedItem.data?.name || '' : editingData.name || ''}
+                          onChange={(e) => handleFieldChange('name', e.target.value)}
+                          disabled={dialogType === 'view'}
+                          error={!!formErrors.name}
+                          helperText={formErrors.name}
+                          required
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <FormControl fullWidth error={!!formErrors.category}>
+                          <InputLabel>Category</InputLabel>
+                          <Select
+                            value={dialogType === 'view' ? selectedItem.data?.category || '' : editingData.category || ''}
+                            onChange={(e) => handleFieldChange('category', e.target.value)}
+                            disabled={dialogType === 'view'}
+                            label="Category"
+                            required
+                          >
+                            <MenuItem value="education">Education</MenuItem>
+                            <MenuItem value="health">Health</MenuItem>
+                            <MenuItem value="nutrition">Nutrition</MenuItem>
+                            <MenuItem value="emergency">Emergency</MenuItem>
+                            <MenuItem value="infrastructure">Infrastructure</MenuItem>
+                          </Select>
+                          {formErrors.category && <FormHelperText>{formErrors.category}</FormHelperText>}
+                        </FormControl>
+                      </Grid>
+                      <Grid item xs={12}>
+                        <TextField
+                          fullWidth
+                          multiline
+                          rows={3}
+                          label="Description"
+                          value={dialogType === 'view' ? selectedItem.data?.description || '' : editingData.description || ''}
+                          onChange={(e) => handleFieldChange('description', e.target.value)}
+                          disabled={dialogType === 'view'}
+                          error={!!formErrors.description}
+                          helperText={formErrors.description}
+                          required
+                        />
+                      </Grid>
+                      <Grid item xs={12}>
+                        <TextField
+                          fullWidth
+                          multiline
+                          rows={4}
+                          label="Long Description"
+                          value={dialogType === 'view' ? selectedItem.data?.longDescription || '' : editingData.longDescription || ''}
+                          onChange={(e) => handleFieldChange('longDescription', e.target.value)}
+                          disabled={dialogType === 'view'}
+                          error={!!formErrors.longDescription}
+                          helperText={formErrors.longDescription}
+                          required
+                        />
+                      </Grid>
+                    </Grid>
+                  </AccordionDetails>
+                </Accordion>
+
+                {/* Financial Information Section */}
+                <Accordion 
+                  expanded={formSections.financial} 
+                  onChange={() => setFormSections(prev => ({ ...prev, financial: !prev.financial }))}
+                  sx={{ mb: 2 }}
+                >
+                  <AccordionSummary expandIcon={<ExpandMore />}>
+                    <Typography variant="h6">Financial Information</Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Grid container spacing={3}>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          label="Target Amount"
+                          value={dialogType === 'view' ? selectedItem.data?.targetAmount || '' : editingData.targetAmount || ''}
+                          onChange={(e) => handleFieldChange('targetAmount', e.target.value)}
+                          disabled={dialogType === 'view'}
+                          error={!!formErrors.targetAmount}
+                          helperText={formErrors.targetAmount}
+                          required
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          label="Current Amount"
+                          value={dialogType === 'view' ? selectedItem.data?.currentAmount || 0 : editingData.currentAmount || 0}
+                          onChange={(e) => handleFieldChange('currentAmount', e.target.value)}
+                          disabled={dialogType === 'view'}
+                          helperText="Amount already raised"
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <FormControl fullWidth error={!!formErrors.currency}>
+                          <InputLabel>Currency</InputLabel>
+                          <Select
+                            value={dialogType === 'view' ? selectedItem.data?.currency || 'USD' : editingData.currency || 'USD'}
+                            onChange={(e) => handleFieldChange('currency', e.target.value)}
+                            disabled={dialogType === 'view'}
+                            label="Currency"
+                            required
+                          >
+                            <MenuItem value="USD">USD</MenuItem>
+                            <MenuItem value="EUR">EUR</MenuItem>
+                            <MenuItem value="GBP">GBP</MenuItem>
+                            <MenuItem value="KES">KES</MenuItem>
+                            <MenuItem value="UGX">UGX</MenuItem>
+                          </Select>
+                          {formErrors.currency && <FormHelperText>{formErrors.currency}</FormHelperText>}
+                        </FormControl>
+                      </Grid>
+                    </Grid>
+                  </AccordionDetails>
+                </Accordion>
+
+                {/* Location & Timeline Section */}
+                <Accordion 
+                  expanded={formSections.details} 
+                  onChange={() => setFormSections(prev => ({ ...prev, details: !prev.details }))}
+                  sx={{ mb: 2 }}
+                >
+                  <AccordionSummary expandIcon={<ExpandMore />}>
+                    <Typography variant="h6">Location & Timeline</Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Grid container spacing={3}>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Country"
+                          value={dialogType === 'view' ? selectedItem.data?.location?.country || '' : editingData.location?.country || ''}
+                          onChange={(e) => handleFieldChange('location', e.target.value, 'country')}
+                          disabled={dialogType === 'view'}
+                          error={!!formErrors.country}
+                          helperText={formErrors.country}
+                          required
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Region"
+                          value={dialogType === 'view' ? selectedItem.data?.location?.region || '' : editingData.location?.region || ''}
+                          onChange={(e) => handleFieldChange('location', e.target.value, 'region')}
+                          disabled={dialogType === 'view'}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="City"
+                          value={dialogType === 'view' ? selectedItem.data?.location?.city || '' : editingData.location?.city || ''}
+                          onChange={(e) => handleFieldChange('location', e.target.value, 'city')}
+                          disabled={dialogType === 'view'}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={3}>
+                        <TextField
+                          fullWidth
+                          type="date"
+                          label="Start Date"
+                          InputLabelProps={{ shrink: true }}
+                          value={dialogType === 'view' ? selectedItem.data?.duration?.startDate || '' : editingData.duration?.startDate || ''}
+                          onChange={(e) => handleFieldChange('duration', e.target.value, 'startDate')}
+                          disabled={dialogType === 'view'}
+                          error={!!formErrors.startDate}
+                          helperText={formErrors.startDate}
+                          required
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={3}>
+                        <TextField
+                          fullWidth
+                          type="date"
+                          label="End Date"
+                          InputLabelProps={{ shrink: true }}
+                          value={dialogType === 'view' ? selectedItem.data?.duration?.endDate || '' : editingData.duration?.endDate || ''}
+                          onChange={(e) => handleFieldChange('duration', e.target.value, 'endDate')}
+                          disabled={dialogType === 'view'}
+                          error={!!formErrors.endDate}
+                          helperText={formErrors.endDate}
+                          required
+                        />
+                      </Grid>
+                    </Grid>
+                  </AccordionDetails>
+                </Accordion>
+
+                {/* Media & Settings Section */}
+                <Accordion 
+                  expanded={formSections.media} 
+                  onChange={() => setFormSections(prev => ({ ...prev, media: !prev.media }))}
+                  sx={{ mb: 2 }}
+                >
+                  <AccordionSummary expandIcon={<ExpandMore />}>
+                    <Typography variant="h6">Media & Settings</Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Grid container spacing={3}>
+                      <Grid item xs={12} md={6}>
+                        <ImageUploadField 
+                          label="Image" 
+                          value={dialogType === 'view' ? selectedItem.data?.image || '' : editingData.image || ''} 
+                          onChange={val => handleFieldChange('image', val)} 
+                          disabled={dialogType === 'view'} 
+                        />
+                        {formErrors.image && (
+                          <FormHelperText error>{formErrors.image}</FormHelperText>
+                        )}
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <FormControl fullWidth error={!!formErrors.status}>
+                          <InputLabel>Status</InputLabel>
+                          <Select
+                            value={dialogType === 'view' ? selectedItem.data?.status || 'active' : editingData.status || 'active'}
+                            onChange={(e) => handleFieldChange('status', e.target.value)}
+                            disabled={dialogType === 'view'}
+                            required={dialogType === 'create'}
+                            label="Status"
+                          >
+                            <MenuItem value="active">Active</MenuItem>
+                            <MenuItem value="upcoming">Upcoming</MenuItem>
+                            <MenuItem value="paused">Paused</MenuItem>
+                            <MenuItem value="completed">Completed</MenuItem>
+                          </Select>
+                          {formErrors.status && <FormHelperText>{formErrors.status}</FormHelperText>}
+                        </FormControl>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <FormControl fullWidth>
+                          <InputLabel>Priority</InputLabel>
+                          <Select
+                            value={dialogType === 'view' ? selectedItem.data?.priority || 'medium' : editingData.priority || 'medium'}
+                            onChange={(e) => handleFieldChange('priority', e.target.value)}
+                            disabled={dialogType === 'view'}
+                            label="Priority"
+                          >
+                            <MenuItem value="low">Low</MenuItem>
+                            <MenuItem value="medium">Medium</MenuItem>
+                            <MenuItem value="high">High</MenuItem>
+                            <MenuItem value="urgent">Urgent</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <FormControl fullWidth>
+                          <InputLabel>Featured</InputLabel>
+                          <Select
+                            value={dialogType === 'view' ? selectedItem.data?.featured || false : editingData.featured || false}
+                            onChange={(e) => handleFieldChange('featured', e.target.value)}
+                            disabled={dialogType === 'view'}
+                            label="Featured"
+                          >
+                            <MenuItem value={true}>Yes</MenuItem>
+                            <MenuItem value={false}>No</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      <Grid item xs={12}>
+                        <TextField
+                          fullWidth
+                          label="Tags"
+                          value={dialogType === 'view' ? (selectedItem.data?.tags || []).join(', ') : (editingData.tags || []).join(', ')}
+                          onChange={(e) => handleFieldChange('tags', e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag))}
+                          disabled={dialogType === 'view'}
+                          helperText="Enter tags separated by commas"
+                        />
+                      </Grid>
+                      <Grid item xs={12}>
+                        <TextField
+                          fullWidth
+                          multiline
+                          rows={3}
+                          label="Gallery URLs"
+                          value={dialogType === 'view' ? (selectedItem.data?.gallery || []).join('\n') : (editingData.gallery || []).join('\n')}
+                          onChange={(e) => handleFieldChange('gallery', e.target.value.split('\n').map(url => url.trim()).filter(url => url))}
+                          disabled={dialogType === 'view'}
+                          helperText="Enter image URLs, one per line"
+                        />
+                      </Grid>
+                    </Grid>
+                  </AccordionDetails>
+                </Accordion>
+
+                {/* Impact Metrics Section */}
+                <Accordion 
+                  expanded={formSections.impact} 
+                  onChange={() => setFormSections(prev => ({ ...prev, impact: !prev.impact }))}
+                  sx={{ mb: 2 }}
+                >
+                  <AccordionSummary expandIcon={<ExpandMore />}>
+                    <Typography variant="h6">Impact Metrics</Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Grid container spacing={3}>
+                      {/* Current Impact Metrics */}
+                      <Grid item xs={12}>
+                        <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'bold' }}>
+                          Current Impact
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          label="Children Helped"
+                          value={dialogType === 'view' ? selectedItem.data?.impactMetrics?.childrenHelped || 0 : editingData.impactMetrics?.childrenHelped || 0}
+                          onChange={(e) => handleFieldChange('impactMetrics', { ...editingData.impactMetrics, childrenHelped: parseInt(e.target.value) || 0 })}
+                          disabled={dialogType === 'view'}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          label="Communities Reached"
+                          value={dialogType === 'view' ? selectedItem.data?.impactMetrics?.communitiesReached || 0 : editingData.impactMetrics?.communitiesReached || 0}
+                          onChange={(e) => handleFieldChange('impactMetrics', { ...editingData.impactMetrics, communitiesReached: parseInt(e.target.value) || 0 })}
+                          disabled={dialogType === 'view'}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          label="Schools Built"
+                          value={dialogType === 'view' ? selectedItem.data?.impactMetrics?.schoolsBuilt || 0 : editingData.impactMetrics?.schoolsBuilt || 0}
+                          onChange={(e) => handleFieldChange('impactMetrics', { ...editingData.impactMetrics, schoolsBuilt: parseInt(e.target.value) || 0 })}
+                          disabled={dialogType === 'view'}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          label="Meals Provided"
+                          value={dialogType === 'view' ? selectedItem.data?.impactMetrics?.mealsProvided || 0 : editingData.impactMetrics?.mealsProvided || 0}
+                          onChange={(e) => handleFieldChange('impactMetrics', { ...editingData.impactMetrics, mealsProvided: parseInt(e.target.value) || 0 })}
+                          disabled={dialogType === 'view'}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          label="Medical Checkups"
+                          value={dialogType === 'view' ? selectedItem.data?.impactMetrics?.medicalCheckups || 0 : editingData.impactMetrics?.medicalCheckups || 0}
+                          onChange={(e) => handleFieldChange('impactMetrics', { ...editingData.impactMetrics, medicalCheckups: parseInt(e.target.value) || 0 })}
+                          disabled={dialogType === 'view'}
+                        />
+                      </Grid>
+
+                      {/* Target Metrics */}
+                      <Grid item xs={12}>
+                        <Typography variant="subtitle1" sx={{ mb: 2, mt: 3, fontWeight: 'bold' }}>
+                          Target Goals
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          label="Target Children to Help"
+                          value={dialogType === 'view' ? selectedItem.data?.targetMetrics?.childrenToHelp || 0 : editingData.targetMetrics?.childrenToHelp || 0}
+                          onChange={(e) => handleFieldChange('targetMetrics', { ...editingData.targetMetrics, childrenToHelp: parseInt(e.target.value) || 0 })}
+                          disabled={dialogType === 'view'}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          label="Target Communities to Reach"
+                          value={dialogType === 'view' ? selectedItem.data?.targetMetrics?.communitiesToReach || 0 : editingData.targetMetrics?.communitiesToReach || 0}
+                          onChange={(e) => handleFieldChange('targetMetrics', { ...editingData.targetMetrics, communitiesToReach: parseInt(e.target.value) || 0 })}
+                          disabled={dialogType === 'view'}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          label="Target Schools to Build"
+                          value={dialogType === 'view' ? selectedItem.data?.targetMetrics?.schoolsToBuild || 0 : editingData.targetMetrics?.schoolsToBuild || 0}
+                          onChange={(e) => handleFieldChange('targetMetrics', { ...editingData.targetMetrics, schoolsToBuild: parseInt(e.target.value) || 0 })}
+                          disabled={dialogType === 'view'}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          label="Target Meals to Provide"
+                          value={dialogType === 'view' ? selectedItem.data?.targetMetrics?.mealsToProvide || 0 : editingData.targetMetrics?.mealsToProvide || 0}
+                          onChange={(e) => handleFieldChange('targetMetrics', { ...editingData.targetMetrics, mealsToProvide: parseInt(e.target.value) || 0 })}
+                          disabled={dialogType === 'view'}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          label="Target Medical Checkups"
+                          value={dialogType === 'view' ? selectedItem.data?.targetMetrics?.medicalCheckupsToProvide || 0 : editingData.targetMetrics?.medicalCheckupsToProvide || 0}
+                          onChange={(e) => handleFieldChange('targetMetrics', { ...editingData.targetMetrics, medicalCheckupsToProvide: parseInt(e.target.value) || 0 })}
+                          disabled={dialogType === 'view'}
+                        />
+                      </Grid>
+
+                      {/* Impact Per Dollar */}
+                      <Grid item xs={12}>
+                        <Typography variant="subtitle1" sx={{ mb: 2, mt: 3, fontWeight: 'bold' }}>
+                          Impact Per Dollar
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} md={2.4}>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          label="Children per $1"
+                          value={dialogType === 'view' ? selectedItem.data?.impactPerDollar?.children || 0 : editingData.impactPerDollar?.children || 0}
+                          onChange={(e) => handleFieldChange('impactPerDollar', { ...editingData.impactPerDollar, children: parseFloat(e.target.value) || 0 })}
+                          disabled={dialogType === 'view'}
+                          inputProps={{ step: 0.01 }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={2.4}>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          label="Communities per $1"
+                          value={dialogType === 'view' ? selectedItem.data?.impactPerDollar?.communities || 0 : editingData.impactPerDollar?.communities || 0}
+                          onChange={(e) => handleFieldChange('impactPerDollar', { ...editingData.impactPerDollar, communities: parseFloat(e.target.value) || 0 })}
+                          disabled={dialogType === 'view'}
+                          inputProps={{ step: 0.01 }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={2.4}>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          label="Schools per $1"
+                          value={dialogType === 'view' ? selectedItem.data?.impactPerDollar?.schools || 0 : editingData.impactPerDollar?.schools || 0}
+                          onChange={(e) => handleFieldChange('impactPerDollar', { ...editingData.impactPerDollar, schools: parseFloat(e.target.value) || 0 })}
+                          disabled={dialogType === 'view'}
+                          inputProps={{ step: 0.01 }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={2.4}>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          label="Meals per $1"
+                          value={dialogType === 'view' ? selectedItem.data?.impactPerDollar?.meals || 0 : editingData.impactPerDollar?.meals || 0}
+                          onChange={(e) => handleFieldChange('impactPerDollar', { ...editingData.impactPerDollar, meals: parseFloat(e.target.value) || 0 })}
+                          disabled={dialogType === 'view'}
+                          inputProps={{ step: 0.01 }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={2.4}>
+                        <TextField
+                          fullWidth
+                          type="number"
+                          label="Checkups per $1"
+                          value={dialogType === 'view' ? selectedItem.data?.impactPerDollar?.checkups || 0 : editingData.impactPerDollar?.checkups || 0}
+                          onChange={(e) => handleFieldChange('impactPerDollar', { ...editingData.impactPerDollar, checkups: parseFloat(e.target.value) || 0 })}
+                          disabled={dialogType === 'view'}
+                          inputProps={{ step: 0.01 }}
+                        />
+                      </Grid>
+                    </Grid>
+                  </AccordionDetails>
+                </Accordion>
+
+                {/* Donation Options Section */}
+                <Accordion 
+                  expanded={formSections.impact} 
+                  onChange={() => setFormSections(prev => ({ ...prev, impact: !prev.impact }))}
+                  sx={{ mb: 2 }}
+                >
+                  <AccordionSummary expandIcon={<ExpandMore />}>
+                    <Typography variant="h6">Donation Options</Typography>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Grid container spacing={3}>
+                      <Grid item xs={12}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                          <Typography variant="subtitle1">
+                            Predefined Donation Amounts
+                          </Typography>
+                          {dialogType !== 'view' && (
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              onClick={addDonationOption}
+                              startIcon={<Add />}
+                            >
+                              Add Option
+                            </Button>
+                          )}
+                        </Box>
+                        
+                        {donationOptions.length === 0 ? (
+                          <Box sx={{ textAlign: 'center', py: 4, border: '2px dashed #ccc', borderRadius: 1 }}>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                              No donation options added yet
+                            </Typography>
+                            {dialogType !== 'view' && (
+                              <Button
+                                variant="outlined"
+                                onClick={addDonationOption}
+                                startIcon={<Add />}
+                              >
+                                Add First Option
+                              </Button>
+                            )}
+                          </Box>
+                        ) : (
+                          donationOptions.map((option, index) => (
+                            <Card key={option.id} sx={{ mb: 2, p: 2 }}>
+                              <Grid container spacing={2} alignItems="center">
+                                <Grid item xs={12} sm={3}>
+                                  <TextField
+                                    fullWidth
+                                    label="Amount"
+                                    type="number"
+                                    value={option.amount}
+                                    onChange={(e) => updateDonationOption(option.id, 'amount', e.target.value)}
+                                    disabled={dialogType === 'view'}
+                                    InputProps={{
+                                      startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                                    }}
+                                    size="small"
+                                  />
+                                </Grid>
+                                <Grid item xs={12} sm={4}>
+                                  <TextField
+                                    fullWidth
+                                    label="Description"
+                                    value={option.description}
+                                    onChange={(e) => updateDonationOption(option.id, 'description', e.target.value)}
+                                    disabled={dialogType === 'view'}
+                                    placeholder="e.g., Monthly Support"
+                                    size="small"
+                                  />
+                                </Grid>
+                                <Grid item xs={12} sm={4}>
+                                  <TextField
+                                    fullWidth
+                                    label="Impact"
+                                    value={option.impact}
+                                    onChange={(e) => updateDonationOption(option.id, 'impact', e.target.value)}
+                                    disabled={dialogType === 'view'}
+                                    placeholder="e.g., Helps one child for a month"
+                                    size="small"
+                                  />
+                                </Grid>
+                                <Grid item xs={12} sm={1}>
+                                  {dialogType !== 'view' && (
+                                    <IconButton
+                                      onClick={() => removeDonationOption(option.id)}
+                                      color="error"
+                                      size="small"
+                                    >
+                                      <Delete />
+                                    </IconButton>
+                                  )}
+                                </Grid>
+                              </Grid>
+                            </Card>
+                          ))
+                        )}
+                      </Grid>
+                      
+                      <Grid item xs={12}>
+                        <Button
+                          variant="outlined"
+                          color="secondary"
+                          disabled={dialogType === 'view'}
+                          sx={{ mb: 2 }}
+                          onClick={() => {
+                            const ta = parseFloat(editingData.targetAmount) || 1;
+                            setEditingData({
+                              ...editingData,
+                              impactPerDollar: {
+                                children: (editingData.targetMetrics?.childrenToHelp || 0) / ta,
+                                communities: (editingData.targetMetrics?.communitiesToReach || 0) / ta,
+                                schools: (editingData.targetMetrics?.schoolsToBuild || 0) / ta,
+                                meals: (editingData.targetMetrics?.mealsToProvide || 0) / ta,
+                                checkups: (editingData.targetMetrics?.medicalCheckupsToProvide || 0) / ta,
+                              },
+                              impactMetrics: {
+                                childrenHelped: editingData.targetMetrics?.childrenToHelp || 0,
+                                communitiesReached: editingData.targetMetrics?.communitiesToReach || 0,
+                                schoolsBuilt: editingData.targetMetrics?.schoolsToBuild || 0,
+                                mealsProvided: editingData.targetMetrics?.mealsToProvide || 0,
+                                medicalCheckups: editingData.targetMetrics?.medicalCheckupsToProvide || 0
+                              }
+                            });
+                            setSnackbar({ open: true, message: 'Impact metrics auto-calculated', severity: 'success' });
+                          }}
+                        >
+                          Auto-calculate Impact Metrics
+                        </Button>
+                      </Grid>
+                    </Grid>
+                  </AccordionDetails>
+                </Accordion>
               </Box>
             )}
 
@@ -2645,9 +3204,11 @@ export default function AdminDashboard() {
               <Button 
                 onClick={handleSave} 
                 variant="contained"
-                disabled={loading}
+                disabled={loading || (selectedItem?.type === 'program' && dialogType === 'create' && formProgress < 100)}
               >
-                {loading ? <CircularProgress size={20} /> : 'Save'}
+                {loading ? 'Saving...' : 
+                 selectedItem?.type === 'program' && dialogType === 'create' && formProgress < 100 ? 
+                 `Complete Form (${formProgress}%)` : 'Save'}
               </Button>
             )}
           </DialogActions>
