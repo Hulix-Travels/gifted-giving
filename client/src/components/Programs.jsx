@@ -21,6 +21,7 @@ export default function Programs() {
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [displayedCount, setDisplayedCount] = useState(4);
 
   useEffect(() => {
     const fetchPrograms = async () => {
@@ -65,6 +66,13 @@ export default function Programs() {
       element.scrollIntoView({ behavior: 'smooth' });
     }
   };
+
+  const handleLoadMore = () => {
+    setDisplayedCount(prev => prev + 4);
+  };
+
+  const displayedPrograms = programs.slice(0, displayedCount);
+  const hasMorePrograms = programs.length > displayedCount;
 
   const formatCurrency = (amount, currency = 'USD') => {
     return new Intl.NumberFormat('en-US', {
@@ -170,7 +178,7 @@ export default function Programs() {
         </Box>
         
         <Grid container spacing={4} justifyContent="center" alignItems="stretch">
-          {programs.map((program, index) => (
+          {displayedPrograms.map((program, index) => (
             <Grid item xs={12} md={4} key={program._id || index}>
               <Card 
                 className="card"
@@ -259,7 +267,7 @@ export default function Programs() {
                     }}
                   />
                 </Box>
-                <CardContent sx={{ flexGrow: 1, p: 3 }}>
+                <CardContent sx={{ flexGrow: 1, p: 3, display: 'flex', flexDirection: 'column' }}>
                   <Typography 
                     variant="body1" 
                     sx={{ 
@@ -303,16 +311,22 @@ export default function Programs() {
                   </Box>
                   {/* Impact and Cost Chips */}
                   <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-                    <Chip 
-                      label={`${program.impactMetrics?.childrenHelped || 0}+ Children`}
-                      size="small"
-                      sx={{
-                        background: 'var(--light-green)',
-                        color: 'var(--primary-green)',
-                        fontWeight: 600,
-                        fontSize: '0.8rem'
-                      }}
-                    />
+                    {(program.impactMetrics?.childrenHelped > 0 || 
+                      program.impactMetrics?.communitiesReached > 0 || 
+                      program.impactMetrics?.schoolsBuilt > 0 || 
+                      program.impactMetrics?.mealsProvided > 0 || 
+                      program.impactMetrics?.medicalCheckups > 0) && (
+                      <Chip 
+                        label={`${program.impactMetrics?.childrenHelped || 0}+ Children`}
+                        size="small"
+                        sx={{
+                          background: 'var(--light-green)',
+                          color: 'var(--primary-green)',
+                          fontWeight: 600,
+                          fontSize: '0.8rem'
+                        }}
+                      />
+                    )}
                     <Chip 
                       label={`${formatCurrency(program.currentAmount, program.currency)} raised`}
                       size="small"
@@ -324,17 +338,29 @@ export default function Programs() {
                       }}
                     />
                   </Box>
-                  {/* New: Display targetMetrics and impactPerDollar */}
-                  {program.targetMetrics && program.impactPerDollar && (
+                  {/* Display targetMetrics (Goals) only if there are meaningful values */}
+                  {program.targetMetrics && (
+                    (program.targetMetrics.childrenToHelp > 0 || 
+                     program.targetMetrics.communitiesToReach > 0 || 
+                     program.targetMetrics.schoolsToBuild > 0 || 
+                     program.targetMetrics.mealsToProvide > 0 || 
+                     program.targetMetrics.medicalCheckupsToProvide > 0)
+                  ) && (
                     <Box sx={{ mb: 2 }}>
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                        <strong>Goals:</strong> {program.targetMetrics.childrenToHelp} children, {program.targetMetrics.communitiesToReach} communities, {program.targetMetrics.schoolsToBuild} schools
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                        <strong>Impact per $1:</strong> {program.impactPerDollar.children} children, {program.impactPerDollar.communities} communities, {program.impactPerDollar.schools} schools
+                        <strong>Goals:</strong> 
+                        {program.targetMetrics.childrenToHelp > 0 && ` ${program.targetMetrics.childrenToHelp} children`}
+                        {program.targetMetrics.communitiesToReach > 0 && `, ${program.targetMetrics.communitiesToReach} communities`}
+                        {program.targetMetrics.schoolsToBuild > 0 && `, ${program.targetMetrics.schoolsToBuild} schools`}
+                        {program.targetMetrics.mealsToProvide > 0 && `, ${program.targetMetrics.mealsToProvide} meals`}
+                        {program.targetMetrics.medicalCheckupsToProvide > 0 && `, ${program.targetMetrics.medicalCheckupsToProvide} checkups`}
                       </Typography>
                     </Box>
                   )}
+                  
+                  {/* Spacer to push button to bottom */}
+                  <Box sx={{ flexGrow: 1 }} />
+                  
                   <Button 
                     variant="contained" 
                     fullWidth
@@ -366,6 +392,35 @@ export default function Programs() {
             </Grid>
           ))}
         </Grid>
+        
+        {/* Load More Button */}
+        {hasMorePrograms && (
+          <Box sx={{ textAlign: 'center', mt: 6 }}>
+            <Button
+              variant="outlined"
+              onClick={handleLoadMore}
+              sx={{
+                px: 4,
+                py: 1.5,
+                borderRadius: 3,
+                borderColor: 'var(--primary-green)',
+                color: 'var(--primary-green)',
+                fontWeight: 600,
+                fontSize: '1rem',
+                textTransform: 'none',
+                '&:hover': {
+                  borderColor: 'var(--dark-green)',
+                  backgroundColor: 'rgba(0,255,140,0.05)',
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 4px 12px rgba(0,255,140,0.2)'
+                },
+                transition: 'all 0.3s ease'
+              }}
+            >
+              ... Load more
+            </Button>
+          </Box>
+        )}
         
         {/* Call to Action */}
         <Box 

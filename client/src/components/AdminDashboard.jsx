@@ -465,7 +465,7 @@ export default function AdminDashboard() {
           }
           break;
         case 'category':
-          if (!value || !['education','health','nutrition','emergency','infrastructure'].includes(value)) {
+          if (!value || !['education','health','nutrition','emergency','infrastructure','other'].includes(value)) {
             errors.category = 'Please select a valid category';
           }
           break;
@@ -613,7 +613,7 @@ export default function AdminDashboard() {
         },
         status: 'active',
         priority: 'medium',
-        featured: false,
+        featured: true,
         tags: [],
         gallery: [],
         // Always reset impactMetrics to zero on save
@@ -709,7 +709,15 @@ export default function AdminDashboard() {
     // Real-time validation
     if (selectedItem?.type === 'program') {
       const fieldErrors = validateField(field, value, 'program');
-      setFormErrors(prev => ({ ...prev, ...fieldErrors }));
+      setFormErrors(prev => {
+        const newErrors = { ...prev };
+        // Clear the error for this field if validation passes
+        if (!fieldErrors[field]) {
+          delete newErrors[field];
+        }
+        // Add any new errors
+        return { ...newErrors, ...fieldErrors };
+      });
       
       // Calculate progress
       const progress = calculateFormProgress(newData, 'program');
@@ -2259,53 +2267,110 @@ export default function AdminDashboard() {
                   sx={{ mb: 2 }}
                 >
                   <AccordionSummary expandIcon={<ExpandMore />}>
-                    <Typography variant="h6">Basic Information</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 600, color: 'var(--primary-green)' }}>
+                      📝 Basic Information
+                    </Typography>
                   </AccordionSummary>
                   <AccordionDetails>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                      Provide the essential details about your program that will be displayed to donors.
+                    </Typography>
                     <Grid container spacing={3}>
                       <Grid item xs={12} md={6}>
                         <TextField
                           fullWidth
                           label="Program Name"
+                          placeholder="e.g., Clean Water for Rural Schools"
                           value={dialogType === 'view' ? selectedItem.data?.name || '' : editingData.name || ''}
                           onChange={(e) => handleFieldChange('name', e.target.value)}
                           disabled={dialogType === 'view'}
                           error={!!formErrors.name}
-                          helperText={formErrors.name}
+                          helperText={formErrors.name || "Choose a clear, compelling name that describes your program's impact"}
                           required
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              '&:hover fieldset': {
+                                borderColor: 'var(--primary-green)',
+                              },
+                            },
+                          }}
                         />
                       </Grid>
                       <Grid item xs={12} md={6}>
                         <FormControl fullWidth error={!!formErrors.category}>
-                          <InputLabel>Category</InputLabel>
+                          <InputLabel shrink>Category *</InputLabel>
                           <Select
                             value={dialogType === 'view' ? selectedItem.data?.category || '' : editingData.category || ''}
                             onChange={(e) => handleFieldChange('category', e.target.value)}
                             disabled={dialogType === 'view'}
-                            label="Category"
+                            label="Category *"
                             required
+                            displayEmpty
+                            renderValue={(selected) => {
+                              if (!selected) {
+                                return <em style={{ color: '#999' }}>Select a category</em>;
+                              }
+                              return selected;
+                            }}
+                            sx={{
+                              '&:hover .MuiOutlinedInput-notchedOutline': {
+                                borderColor: 'var(--primary-green)',
+                              },
+                            }}
                           >
                             <MenuItem value="education">Education</MenuItem>
                             <MenuItem value="health">Health</MenuItem>
                             <MenuItem value="nutrition">Nutrition</MenuItem>
                             <MenuItem value="emergency">Emergency</MenuItem>
                             <MenuItem value="infrastructure">Infrastructure</MenuItem>
+                            <MenuItem value="other">Other</MenuItem>
                           </Select>
                           {formErrors.category && <FormHelperText>{formErrors.category}</FormHelperText>}
                         </FormControl>
                       </Grid>
+                      {(editingData.category === 'other' || selectedItem.data?.category === 'other') && (
+                        <Grid item xs={12} md={8}>
+                          <TextField
+                            fullWidth
+                            label="Custom Category"
+                            placeholder="Enter your custom category name"
+                            value={dialogType === 'view' ? selectedItem.data?.customCategory || '' : editingData.customCategory || ''}
+                            onChange={(e) => handleFieldChange('customCategory', e.target.value)}
+                            disabled={dialogType === 'view'}
+                            error={!!formErrors.customCategory}
+                            helperText={formErrors.customCategory || "Specify the custom category name"}
+                            required={editingData.category === 'other' || selectedItem.data?.category === 'other'}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                '&:hover fieldset': {
+                                  borderColor: 'var(--primary-green)',
+                                },
+                              },
+                            }}
+                          />
+                        </Grid>
+                      )}
                       <Grid item xs={12}>
                         <TextField
                           fullWidth
                           multiline
                           rows={3}
-                          label="Description"
+                          label="Short Description"
+                          placeholder="Brief summary of what this program does and its impact..."
                           value={dialogType === 'view' ? selectedItem.data?.description || '' : editingData.description || ''}
                           onChange={(e) => handleFieldChange('description', e.target.value)}
                           disabled={dialogType === 'view'}
                           error={!!formErrors.description}
-                          helperText={formErrors.description}
+                          helperText={formErrors.description || "Keep it concise but compelling - this appears on program cards"}
                           required
+                          inputProps={{ maxLength: 1000 }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              '&:hover fieldset': {
+                                borderColor: 'var(--primary-green)',
+                              },
+                            },
+                          }}
                         />
                       </Grid>
                       <Grid item xs={12}>
@@ -2313,13 +2378,21 @@ export default function AdminDashboard() {
                           fullWidth
                           multiline
                           rows={4}
-                          label="Long Description"
+                          label="Detailed Description"
+                          placeholder="Provide a comprehensive description of the program, including background, methodology, expected outcomes, and long-term impact..."
                           value={dialogType === 'view' ? selectedItem.data?.longDescription || '' : editingData.longDescription || ''}
                           onChange={(e) => handleFieldChange('longDescription', e.target.value)}
                           disabled={dialogType === 'view'}
                           error={!!formErrors.longDescription}
-                          helperText={formErrors.longDescription}
+                          helperText={formErrors.longDescription || "This detailed description helps donors understand the full scope and impact of your program"}
                           required
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              '&:hover fieldset': {
+                                borderColor: 'var(--primary-green)',
+                              },
+                            },
+                          }}
                         />
                       </Grid>
                     </Grid>
@@ -2333,21 +2406,35 @@ export default function AdminDashboard() {
                   sx={{ mb: 2 }}
                 >
                   <AccordionSummary expandIcon={<ExpandMore />}>
-                    <Typography variant="h6">Financial Information</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 600, color: 'var(--primary-green)' }}>
+                      💰 Financial Information
+                    </Typography>
                   </AccordionSummary>
                   <AccordionDetails>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                      Set the funding goals and currency for your program. The target amount will be displayed to donors.
+                    </Typography>
                     <Grid container spacing={3}>
                       <Grid item xs={12} md={6}>
                         <TextField
                           fullWidth
                           type="number"
                           label="Target Amount"
+                          placeholder="e.g., 50000"
                           value={dialogType === 'view' ? selectedItem.data?.targetAmount || '' : editingData.targetAmount || ''}
                           onChange={(e) => handleFieldChange('targetAmount', e.target.value)}
                           disabled={dialogType === 'view'}
                           error={!!formErrors.targetAmount}
-                          helperText={formErrors.targetAmount}
+                          helperText={formErrors.targetAmount || "The total amount needed to complete this program"}
                           required
+                          inputProps={{ min: 1 }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              '&:hover fieldset': {
+                                borderColor: 'var(--primary-green)',
+                              },
+                            },
+                          }}
                         />
                       </Grid>
                       <Grid item xs={12} md={6}>
@@ -2355,30 +2442,66 @@ export default function AdminDashboard() {
                           fullWidth
                           type="number"
                           label="Current Amount"
+                          placeholder="e.g., 15000"
                           value={dialogType === 'view' ? selectedItem.data?.currentAmount || 0 : editingData.currentAmount || 0}
                           onChange={(e) => handleFieldChange('currentAmount', e.target.value)}
                           disabled={dialogType === 'view'}
-                          helperText="Amount already raised"
+                          helperText="Amount already raised (leave 0 for new programs)"
+                          inputProps={{ min: 0 }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              '&:hover fieldset': {
+                                borderColor: 'var(--primary-green)',
+                              },
+                            },
+                          }}
                         />
                       </Grid>
                       <Grid item xs={12} md={6}>
                         <FormControl fullWidth error={!!formErrors.currency}>
-                          <InputLabel>Currency</InputLabel>
+                          <InputLabel>Currency *</InputLabel>
                           <Select
                             value={dialogType === 'view' ? selectedItem.data?.currency || 'USD' : editingData.currency || 'USD'}
                             onChange={(e) => handleFieldChange('currency', e.target.value)}
                             disabled={dialogType === 'view'}
-                            label="Currency"
+                            label="Currency *"
                             required
+                            sx={{
+                              '&:hover .MuiOutlinedInput-notchedOutline': {
+                                borderColor: 'var(--primary-green)',
+                              },
+                            }}
                           >
-                            <MenuItem value="USD">USD</MenuItem>
-                            <MenuItem value="EUR">EUR</MenuItem>
-                            <MenuItem value="GBP">GBP</MenuItem>
-                            <MenuItem value="KES">KES</MenuItem>
-                            <MenuItem value="UGX">UGX</MenuItem>
+                            <MenuItem value="USD">🇺🇸 USD - US Dollar</MenuItem>
+                            <MenuItem value="EUR">🇪🇺 EUR - Euro</MenuItem>
+                            <MenuItem value="GBP">🇬🇧 GBP - British Pound</MenuItem>
+                            <MenuItem value="KES">🇰🇪 KES - Kenyan Shilling</MenuItem>
+                            <MenuItem value="UGX">🇺🇬 UGX - Ugandan Shilling</MenuItem>
                           </Select>
                           {formErrors.currency && <FormHelperText>{formErrors.currency}</FormHelperText>}
                         </FormControl>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Box sx={{ 
+                          p: 2, 
+                          bgcolor: 'rgba(0,255,140,0.05)', 
+                          borderRadius: 2, 
+                          border: '1px solid rgba(0,255,140,0.1)' 
+                        }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                            <strong>Progress Preview:</strong>
+                          </Typography>
+                          <Typography variant="h6" sx={{ color: 'var(--primary-green)', fontWeight: 600 }}>
+                            {editingData.currentAmount || 0} / {editingData.targetAmount || 0} 
+                            {editingData.currency || 'USD'}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {editingData.targetAmount ? 
+                              `${Math.round(((editingData.currentAmount || 0) / editingData.targetAmount) * 100)}% funded` : 
+                              '0% funded'
+                            }
+                          </Typography>
+                        </Box>
                       </Grid>
                     </Grid>
                   </AccordionDetails>
@@ -2391,41 +2514,112 @@ export default function AdminDashboard() {
                   sx={{ mb: 2 }}
                 >
                   <AccordionSummary expandIcon={<ExpandMore />}>
-                    <Typography variant="h6">Location & Timeline</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 600, color: 'var(--primary-green)' }}>
+                      🌍 Location & Timeline
+                    </Typography>
                   </AccordionSummary>
                   <AccordionDetails>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                      Specify where your program will take place and when it will run. This helps donors understand the scope and timeline.
+                    </Typography>
                     <Grid container spacing={3}>
-                      <Grid item xs={12} md={6}>
+                      <Grid item xs={12} md={4}>
                         <TextField
                           fullWidth
                           label="Country"
+                          placeholder="e.g., Kenya"
                           value={dialogType === 'view' ? selectedItem.data?.location?.country || '' : editingData.location?.country || ''}
                           onChange={(e) => handleFieldChange('location', e.target.value, 'country')}
                           disabled={dialogType === 'view'}
                           error={!!formErrors.country}
-                          helperText={formErrors.country}
+                          helperText={formErrors.country || "Primary country where the program operates"}
                           required
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              '&:hover fieldset': {
+                                borderColor: 'var(--primary-green)',
+                              },
+                            },
+                          }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={6}>
+                      <Grid item xs={12} md={4}>
                         <TextField
                           fullWidth
-                          label="Region"
+                          label="Region/State"
+                          placeholder="e.g., Western Province"
                           value={dialogType === 'view' ? selectedItem.data?.location?.region || '' : editingData.location?.region || ''}
                           onChange={(e) => handleFieldChange('location', e.target.value, 'region')}
                           disabled={dialogType === 'view'}
+                          helperText="State, province, or region within the country"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              '&:hover fieldset': {
+                                borderColor: 'var(--primary-green)',
+                              },
+                            },
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <TextField
+                          fullWidth
+                          label="City/Town"
+                          placeholder="e.g., Kisumu"
+                          value={dialogType === 'view' ? selectedItem.data?.location?.city || '' : editingData.location?.city || ''}
+                          onChange={(e) => handleFieldChange('location', e.target.value, 'city')}
+                          disabled={dialogType === 'view'}
+                          helperText="Specific city or town (optional)"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              '&:hover fieldset': {
+                                borderColor: 'var(--primary-green)',
+                              },
+                            },
+                          }}
                         />
                       </Grid>
                       <Grid item xs={12} md={6}>
                         <TextField
                           fullWidth
-                          label="City"
-                          value={dialogType === 'view' ? selectedItem.data?.location?.city || '' : editingData.location?.city || ''}
-                          onChange={(e) => handleFieldChange('location', e.target.value, 'city')}
+                          label="Latitude"
+                          placeholder="e.g., -0.0917"
+                          type="number"
+                          value={dialogType === 'view' ? selectedItem.data?.location?.coordinates?.lat || '' : editingData.location?.coordinates?.lat || ''}
+                          onChange={(e) => handleFieldChange('location', { ...editingData.location, coordinates: { ...editingData.location?.coordinates, lat: parseFloat(e.target.value) || 0 } })}
                           disabled={dialogType === 'view'}
+                          helperText="GPS latitude for precise location mapping (optional)"
+                          inputProps={{ step: 0.000001, min: -90, max: 90 }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              '&:hover fieldset': {
+                                borderColor: 'var(--primary-green)',
+                              },
+                            },
+                          }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={3}>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Longitude"
+                          placeholder="e.g., 34.7680"
+                          type="number"
+                          value={dialogType === 'view' ? selectedItem.data?.location?.coordinates?.lng || '' : editingData.location?.coordinates?.lng || ''}
+                          onChange={(e) => handleFieldChange('location', { ...editingData.location, coordinates: { ...editingData.location?.coordinates, lng: parseFloat(e.target.value) || 0 } })}
+                          disabled={dialogType === 'view'}
+                          helperText="GPS longitude for precise location mapping (optional)"
+                          inputProps={{ step: 0.000001, min: -180, max: 180 }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              '&:hover fieldset': {
+                                borderColor: 'var(--primary-green)',
+                              },
+                            },
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
                         <TextField
                           fullWidth
                           type="date"
@@ -2435,11 +2629,18 @@ export default function AdminDashboard() {
                           onChange={(e) => handleFieldChange('duration', e.target.value, 'startDate')}
                           disabled={dialogType === 'view'}
                           error={!!formErrors.startDate}
-                          helperText={formErrors.startDate}
+                          helperText={formErrors.startDate || "When the program will begin"}
                           required
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              '&:hover fieldset': {
+                                borderColor: 'var(--primary-green)',
+                              },
+                            },
+                          }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={3}>
+                      <Grid item xs={12} md={6}>
                         <TextField
                           fullWidth
                           type="date"
@@ -2449,8 +2650,15 @@ export default function AdminDashboard() {
                           onChange={(e) => handleFieldChange('duration', e.target.value, 'endDate')}
                           disabled={dialogType === 'view'}
                           error={!!formErrors.endDate}
-                          helperText={formErrors.endDate}
+                          helperText={formErrors.endDate || "Expected completion date"}
                           required
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              '&:hover fieldset': {
+                                borderColor: 'var(--primary-green)',
+                              },
+                            },
+                          }}
                         />
                       </Grid>
                     </Grid>
@@ -2464,13 +2672,18 @@ export default function AdminDashboard() {
                   sx={{ mb: 2 }}
                 >
                   <AccordionSummary expandIcon={<ExpandMore />}>
-                    <Typography variant="h6">Media & Settings</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 600, color: 'var(--primary-green)' }}>
+                      🖼️ Media & Settings
+                    </Typography>
                   </AccordionSummary>
                   <AccordionDetails>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                      Upload images and configure program settings. Featured programs appear prominently on the homepage.
+                    </Typography>
                     <Grid container spacing={3}>
                       <Grid item xs={12} md={6}>
                         <ImageUploadField 
-                          label="Image" 
+                          label="Main Program Image" 
                           value={dialogType === 'view' ? selectedItem.data?.image || '' : editingData.image || ''} 
                           onChange={val => handleFieldChange('image', val)} 
                           disabled={dialogType === 'view'} 
@@ -2478,52 +2691,70 @@ export default function AdminDashboard() {
                         {formErrors.image && (
                           <FormHelperText error>{formErrors.image}</FormHelperText>
                         )}
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                          This image will be displayed on program cards and detail pages. Recommended size: 800x600px
+                        </Typography>
                       </Grid>
                       <Grid item xs={12} md={6}>
                         <FormControl fullWidth error={!!formErrors.status}>
-                          <InputLabel>Status</InputLabel>
+                          <InputLabel>Program Status *</InputLabel>
                           <Select
                             value={dialogType === 'view' ? selectedItem.data?.status || 'active' : editingData.status || 'active'}
                             onChange={(e) => handleFieldChange('status', e.target.value)}
                             disabled={dialogType === 'view'}
                             required={dialogType === 'create'}
-                            label="Status"
+                            label="Program Status *"
+                            sx={{
+                              '&:hover .MuiOutlinedInput-notchedOutline': {
+                                borderColor: 'var(--primary-green)',
+                              },
+                            }}
                           >
-                            <MenuItem value="active">Active</MenuItem>
-                            <MenuItem value="upcoming">Upcoming</MenuItem>
-                            <MenuItem value="paused">Paused</MenuItem>
-                            <MenuItem value="completed">Completed</MenuItem>
+                            <MenuItem value="active">Active - Currently accepting donations</MenuItem>
+                            <MenuItem value="upcoming">Upcoming - Not yet started</MenuItem>
+                            <MenuItem value="paused">Paused - Temporarily suspended</MenuItem>
+                            <MenuItem value="completed">Completed - Program finished</MenuItem>
                           </Select>
                           {formErrors.status && <FormHelperText>{formErrors.status}</FormHelperText>}
                         </FormControl>
                       </Grid>
                       <Grid item xs={12} md={6}>
                         <FormControl fullWidth>
-                          <InputLabel>Priority</InputLabel>
+                          <InputLabel>Priority Level</InputLabel>
                           <Select
                             value={dialogType === 'view' ? selectedItem.data?.priority || 'medium' : editingData.priority || 'medium'}
                             onChange={(e) => handleFieldChange('priority', e.target.value)}
                             disabled={dialogType === 'view'}
-                            label="Priority"
+                            label="Priority Level"
+                            sx={{
+                              '&:hover .MuiOutlinedInput-notchedOutline': {
+                                borderColor: 'var(--primary-green)',
+                              },
+                            }}
                           >
-                            <MenuItem value="low">Low</MenuItem>
-                            <MenuItem value="medium">Medium</MenuItem>
-                            <MenuItem value="high">High</MenuItem>
-                            <MenuItem value="urgent">Urgent</MenuItem>
+                            <MenuItem value="low">Low Priority</MenuItem>
+                            <MenuItem value="medium">Medium Priority</MenuItem>
+                            <MenuItem value="high">High Priority</MenuItem>
+                            <MenuItem value="urgent">Urgent Priority</MenuItem>
                           </Select>
                         </FormControl>
                       </Grid>
                       <Grid item xs={12} md={6}>
                         <FormControl fullWidth>
-                          <InputLabel>Featured</InputLabel>
+                          <InputLabel>Featured Program</InputLabel>
                           <Select
                             value={dialogType === 'view' ? selectedItem.data?.featured || false : editingData.featured || false}
                             onChange={(e) => handleFieldChange('featured', e.target.value)}
                             disabled={dialogType === 'view'}
-                            label="Featured"
+                            label="Featured Program"
+                            sx={{
+                              '&:hover .MuiOutlinedInput-notchedOutline': {
+                                borderColor: 'var(--primary-green)',
+                              },
+                            }}
                           >
-                            <MenuItem value={true}>Yes</MenuItem>
-                            <MenuItem value={false}>No</MenuItem>
+                            <MenuItem value={true}>Yes - Show on homepage</MenuItem>
+                            <MenuItem value={false}>No - Regular listing</MenuItem>
                           </Select>
                         </FormControl>
                       </Grid>
@@ -2531,22 +2762,38 @@ export default function AdminDashboard() {
                         <TextField
                           fullWidth
                           label="Tags"
+                          placeholder="e.g., education, rural, children, clean water"
                           value={dialogType === 'view' ? (selectedItem.data?.tags || []).join(', ') : (editingData.tags || []).join(', ')}
                           onChange={(e) => handleFieldChange('tags', e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag))}
                           disabled={dialogType === 'view'}
-                          helperText="Enter tags separated by commas"
+                          helperText="Add relevant keywords separated by commas to help donors find your program"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              '&:hover fieldset': {
+                                borderColor: 'var(--primary-green)',
+                              },
+                            },
+                          }}
                         />
                       </Grid>
                       <Grid item xs={12}>
                         <TextField
                           fullWidth
                           multiline
-                          rows={3}
-                          label="Gallery URLs"
+                          rows={4}
+                          label="Additional Gallery Images"
+                          placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg&#10;https://example.com/image3.jpg"
                           value={dialogType === 'view' ? (selectedItem.data?.gallery || []).join('\n') : (editingData.gallery || []).join('\n')}
                           onChange={(e) => handleFieldChange('gallery', e.target.value.split('\n').map(url => url.trim()).filter(url => url))}
                           disabled={dialogType === 'view'}
-                          helperText="Enter image URLs, one per line"
+                          helperText="Enter additional image URLs, one per line. These will be shown in the program gallery."
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              '&:hover fieldset': {
+                                borderColor: 'var(--primary-green)',
+                              },
+                            },
+                          }}
                         />
                       </Grid>
                     </Grid>
@@ -2560,24 +2807,42 @@ export default function AdminDashboard() {
                   sx={{ mb: 2 }}
                 >
                   <AccordionSummary expandIcon={<ExpandMore />}>
-                    <Typography variant="h6">Impact Metrics</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 600, color: 'var(--primary-green)' }}>
+                      📊 Impact Metrics & Goals
+                    </Typography>
                   </AccordionSummary>
                   <AccordionDetails>
-                    <Grid container spacing={3}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                      Define the measurable impact your program aims to achieve. These metrics help donors understand the tangible outcomes of their contributions.
+                    </Typography>
+                    
                       {/* Current Impact Metrics */}
-                      <Grid item xs={12}>
-                        <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'bold' }}>
-                          Current Impact
+                    <Box sx={{ mb: 4 }}>
+                      <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'var(--primary-green)' }}>
+                        📈 Current Impact (Achieved So Far)
                         </Typography>
-                      </Grid>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                        Track the impact your program has already made. Leave as 0 for new programs.
+                      </Typography>
+                      <Grid container spacing={3}>
                       <Grid item xs={12} md={4}>
                         <TextField
                           fullWidth
                           type="number"
                           label="Children Helped"
+                            placeholder="0"
                           value={dialogType === 'view' ? selectedItem.data?.impactMetrics?.childrenHelped || 0 : editingData.impactMetrics?.childrenHelped || 0}
                           onChange={(e) => handleFieldChange('impactMetrics', { ...editingData.impactMetrics, childrenHelped: parseInt(e.target.value) || 0 })}
                           disabled={dialogType === 'view'}
+                            helperText="Number of children directly helped"
+                            inputProps={{ min: 0 }}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                '&:hover fieldset': {
+                                  borderColor: 'var(--primary-green)',
+                                },
+                              },
+                            }}
                         />
                       </Grid>
                       <Grid item xs={12} md={4}>
@@ -2585,9 +2850,19 @@ export default function AdminDashboard() {
                           fullWidth
                           type="number"
                           label="Communities Reached"
+                            placeholder="0"
                           value={dialogType === 'view' ? selectedItem.data?.impactMetrics?.communitiesReached || 0 : editingData.impactMetrics?.communitiesReached || 0}
                           onChange={(e) => handleFieldChange('impactMetrics', { ...editingData.impactMetrics, communitiesReached: parseInt(e.target.value) || 0 })}
                           disabled={dialogType === 'view'}
+                            helperText="Number of communities impacted"
+                            inputProps={{ min: 0 }}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                '&:hover fieldset': {
+                                  borderColor: 'var(--primary-green)',
+                                },
+                              },
+                            }}
                         />
                       </Grid>
                       <Grid item xs={12} md={4}>
@@ -2595,9 +2870,19 @@ export default function AdminDashboard() {
                           fullWidth
                           type="number"
                           label="Schools Built"
+                            placeholder="0"
                           value={dialogType === 'view' ? selectedItem.data?.impactMetrics?.schoolsBuilt || 0 : editingData.impactMetrics?.schoolsBuilt || 0}
                           onChange={(e) => handleFieldChange('impactMetrics', { ...editingData.impactMetrics, schoolsBuilt: parseInt(e.target.value) || 0 })}
                           disabled={dialogType === 'view'}
+                            helperText="Number of schools constructed"
+                            inputProps={{ min: 0 }}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                '&:hover fieldset': {
+                                  borderColor: 'var(--primary-green)',
+                                },
+                              },
+                            }}
                         />
                       </Grid>
                       <Grid item xs={12} md={6}>
@@ -2605,9 +2890,19 @@ export default function AdminDashboard() {
                           fullWidth
                           type="number"
                           label="Meals Provided"
+                            placeholder="0"
                           value={dialogType === 'view' ? selectedItem.data?.impactMetrics?.mealsProvided || 0 : editingData.impactMetrics?.mealsProvided || 0}
                           onChange={(e) => handleFieldChange('impactMetrics', { ...editingData.impactMetrics, mealsProvided: parseInt(e.target.value) || 0 })}
                           disabled={dialogType === 'view'}
+                            helperText="Total meals distributed"
+                            inputProps={{ min: 0 }}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                '&:hover fieldset': {
+                                  borderColor: 'var(--primary-green)',
+                                },
+                              },
+                            }}
                         />
                       </Grid>
                       <Grid item xs={12} md={6}>
@@ -2615,26 +2910,51 @@ export default function AdminDashboard() {
                           fullWidth
                           type="number"
                           label="Medical Checkups"
+                            placeholder="0"
                           value={dialogType === 'view' ? selectedItem.data?.impactMetrics?.medicalCheckups || 0 : editingData.impactMetrics?.medicalCheckups || 0}
                           onChange={(e) => handleFieldChange('impactMetrics', { ...editingData.impactMetrics, medicalCheckups: parseInt(e.target.value) || 0 })}
                           disabled={dialogType === 'view'}
+                            helperText="Number of medical checkups provided"
+                            inputProps={{ min: 0 }}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                '&:hover fieldset': {
+                                  borderColor: 'var(--primary-green)',
+                                },
+                              },
+                            }}
                         />
                       </Grid>
+                      </Grid>
+                    </Box>
 
                       {/* Target Metrics */}
-                      <Grid item xs={12}>
-                        <Typography variant="subtitle1" sx={{ mb: 2, mt: 3, fontWeight: 'bold' }}>
-                          Target Goals
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'var(--primary-green)' }}>
+                        🎯 Target Goals (What You Plan to Achieve)
                         </Typography>
-                      </Grid>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                        Set the goals your program aims to achieve. These will be displayed to donors to show the program's potential impact.
+                      </Typography>
+                      <Grid container spacing={3}>
                       <Grid item xs={12} md={4}>
                         <TextField
                           fullWidth
                           type="number"
                           label="Target Children to Help"
+                            placeholder="e.g., 500"
                           value={dialogType === 'view' ? selectedItem.data?.targetMetrics?.childrenToHelp || 0 : editingData.targetMetrics?.childrenToHelp || 0}
                           onChange={(e) => handleFieldChange('targetMetrics', { ...editingData.targetMetrics, childrenToHelp: parseInt(e.target.value) || 0 })}
                           disabled={dialogType === 'view'}
+                            helperText="Total children you aim to help"
+                            inputProps={{ min: 0 }}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                '&:hover fieldset': {
+                                  borderColor: 'var(--primary-green)',
+                                },
+                              },
+                            }}
                         />
                       </Grid>
                       <Grid item xs={12} md={4}>
@@ -2642,9 +2962,19 @@ export default function AdminDashboard() {
                           fullWidth
                           type="number"
                           label="Target Communities to Reach"
+                            placeholder="e.g., 10"
                           value={dialogType === 'view' ? selectedItem.data?.targetMetrics?.communitiesToReach || 0 : editingData.targetMetrics?.communitiesToReach || 0}
                           onChange={(e) => handleFieldChange('targetMetrics', { ...editingData.targetMetrics, communitiesToReach: parseInt(e.target.value) || 0 })}
                           disabled={dialogType === 'view'}
+                            helperText="Number of communities to impact"
+                            inputProps={{ min: 0 }}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                '&:hover fieldset': {
+                                  borderColor: 'var(--primary-green)',
+                                },
+                              },
+                            }}
                         />
                       </Grid>
                       <Grid item xs={12} md={4}>
@@ -2652,9 +2982,19 @@ export default function AdminDashboard() {
                           fullWidth
                           type="number"
                           label="Target Schools to Build"
+                            placeholder="e.g., 3"
                           value={dialogType === 'view' ? selectedItem.data?.targetMetrics?.schoolsToBuild || 0 : editingData.targetMetrics?.schoolsToBuild || 0}
                           onChange={(e) => handleFieldChange('targetMetrics', { ...editingData.targetMetrics, schoolsToBuild: parseInt(e.target.value) || 0 })}
                           disabled={dialogType === 'view'}
+                            helperText="Number of schools to construct"
+                            inputProps={{ min: 0 }}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                '&:hover fieldset': {
+                                  borderColor: 'var(--primary-green)',
+                                },
+                              },
+                            }}
                         />
                       </Grid>
                       <Grid item xs={12} md={6}>
@@ -2662,9 +3002,19 @@ export default function AdminDashboard() {
                           fullWidth
                           type="number"
                           label="Target Meals to Provide"
+                            placeholder="e.g., 10000"
                           value={dialogType === 'view' ? selectedItem.data?.targetMetrics?.mealsToProvide || 0 : editingData.targetMetrics?.mealsToProvide || 0}
                           onChange={(e) => handleFieldChange('targetMetrics', { ...editingData.targetMetrics, mealsToProvide: parseInt(e.target.value) || 0 })}
                           disabled={dialogType === 'view'}
+                            helperText="Total meals to distribute"
+                            inputProps={{ min: 0 }}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                '&:hover fieldset': {
+                                  borderColor: 'var(--primary-green)',
+                                },
+                              },
+                            }}
                         />
                       </Grid>
                       <Grid item xs={12} md={6}>
@@ -2672,27 +3022,51 @@ export default function AdminDashboard() {
                           fullWidth
                           type="number"
                           label="Target Medical Checkups"
+                            placeholder="e.g., 200"
                           value={dialogType === 'view' ? selectedItem.data?.targetMetrics?.medicalCheckupsToProvide || 0 : editingData.targetMetrics?.medicalCheckupsToProvide || 0}
                           onChange={(e) => handleFieldChange('targetMetrics', { ...editingData.targetMetrics, medicalCheckupsToProvide: parseInt(e.target.value) || 0 })}
                           disabled={dialogType === 'view'}
+                            helperText="Number of medical checkups to provide"
+                            inputProps={{ min: 0 }}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                '&:hover fieldset': {
+                                  borderColor: 'var(--primary-green)',
+                                },
+                              },
+                            }}
                         />
                       </Grid>
+                      </Grid>
+                    </Box>
 
                       {/* Impact Per Dollar */}
-                      <Grid item xs={12}>
-                        <Typography variant="subtitle1" sx={{ mb: 2, mt: 3, fontWeight: 'bold' }}>
-                          Impact Per Dollar
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="h6" sx={{ mb: 2, mt: 3, fontWeight: 600, color: 'var(--primary-green)' }}>
+                        💰 Impact Per Dollar
                         </Typography>
-                      </Grid>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                        Define how much impact each dollar donated will create. This helps donors understand the value of their contribution.
+                      </Typography>
+                      <Grid container spacing={3}>
                       <Grid item xs={12} md={2.4}>
                         <TextField
                           fullWidth
                           type="number"
                           label="Children per $1"
+                            placeholder="0.01"
                           value={dialogType === 'view' ? selectedItem.data?.impactPerDollar?.children || 0 : editingData.impactPerDollar?.children || 0}
                           onChange={(e) => handleFieldChange('impactPerDollar', { ...editingData.impactPerDollar, children: parseFloat(e.target.value) || 0 })}
                           disabled={dialogType === 'view'}
-                          inputProps={{ step: 0.01 }}
+                            helperText="Children helped per dollar"
+                            inputProps={{ step: 0.01, min: 0 }}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                '&:hover fieldset': {
+                                  borderColor: 'var(--primary-green)',
+                                },
+                              },
+                            }}
                         />
                       </Grid>
                       <Grid item xs={12} md={2.4}>
@@ -2700,10 +3074,19 @@ export default function AdminDashboard() {
                           fullWidth
                           type="number"
                           label="Communities per $1"
+                            placeholder="0.001"
                           value={dialogType === 'view' ? selectedItem.data?.impactPerDollar?.communities || 0 : editingData.impactPerDollar?.communities || 0}
                           onChange={(e) => handleFieldChange('impactPerDollar', { ...editingData.impactPerDollar, communities: parseFloat(e.target.value) || 0 })}
                           disabled={dialogType === 'view'}
-                          inputProps={{ step: 0.01 }}
+                            helperText="Communities reached per dollar"
+                            inputProps={{ step: 0.001, min: 0 }}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                '&:hover fieldset': {
+                                  borderColor: 'var(--primary-green)',
+                                },
+                              },
+                            }}
                         />
                       </Grid>
                       <Grid item xs={12} md={2.4}>
@@ -2711,10 +3094,19 @@ export default function AdminDashboard() {
                           fullWidth
                           type="number"
                           label="Schools per $1"
+                            placeholder="0.0001"
                           value={dialogType === 'view' ? selectedItem.data?.impactPerDollar?.schools || 0 : editingData.impactPerDollar?.schools || 0}
                           onChange={(e) => handleFieldChange('impactPerDollar', { ...editingData.impactPerDollar, schools: parseFloat(e.target.value) || 0 })}
                           disabled={dialogType === 'view'}
-                          inputProps={{ step: 0.01 }}
+                            helperText="Schools built per dollar"
+                            inputProps={{ step: 0.0001, min: 0 }}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                '&:hover fieldset': {
+                                  borderColor: 'var(--primary-green)',
+                                },
+                              },
+                            }}
                         />
                       </Grid>
                       <Grid item xs={12} md={2.4}>
@@ -2722,10 +3114,19 @@ export default function AdminDashboard() {
                           fullWidth
                           type="number"
                           label="Meals per $1"
+                            placeholder="0.1"
                           value={dialogType === 'view' ? selectedItem.data?.impactPerDollar?.meals || 0 : editingData.impactPerDollar?.meals || 0}
                           onChange={(e) => handleFieldChange('impactPerDollar', { ...editingData.impactPerDollar, meals: parseFloat(e.target.value) || 0 })}
                           disabled={dialogType === 'view'}
-                          inputProps={{ step: 0.01 }}
+                            helperText="Meals provided per dollar"
+                            inputProps={{ step: 0.1, min: 0 }}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                '&:hover fieldset': {
+                                  borderColor: 'var(--primary-green)',
+                                },
+                              },
+                            }}
                         />
                       </Grid>
                       <Grid item xs={12} md={2.4}>
@@ -2733,13 +3134,73 @@ export default function AdminDashboard() {
                           fullWidth
                           type="number"
                           label="Checkups per $1"
+                            placeholder="0.01"
                           value={dialogType === 'view' ? selectedItem.data?.impactPerDollar?.checkups || 0 : editingData.impactPerDollar?.checkups || 0}
                           onChange={(e) => handleFieldChange('impactPerDollar', { ...editingData.impactPerDollar, checkups: parseFloat(e.target.value) || 0 })}
                           disabled={dialogType === 'view'}
-                          inputProps={{ step: 0.01 }}
+                            helperText="Medical checkups per dollar"
+                            inputProps={{ step: 0.01, min: 0 }}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                '&:hover fieldset': {
+                                  borderColor: 'var(--primary-green)',
+                                },
+                              },
+                            }}
                         />
                       </Grid>
                     </Grid>
+                    </Box>
+
+                    {/* Auto-calculate Button */}
+                    <Box sx={{ mt: 3, mb: 2 }}>
+                      <Button
+                        variant="outlined"
+                        color="secondary"
+                        disabled={dialogType === 'view'}
+                        onClick={() => {
+                          const ta = parseFloat(editingData.targetAmount) || 1;
+                          const currentAmount = parseFloat(editingData.currentAmount) || 0;
+                          const remainingAmount = Math.max(ta - currentAmount, 1); // Ensure we don't divide by 0
+                          
+                          // Calculate remaining impact needed
+                          const remainingChildren = Math.max((editingData.targetMetrics?.childrenToHelp || 0) - (editingData.impactMetrics?.childrenHelped || 0), 0);
+                          const remainingCommunities = Math.max((editingData.targetMetrics?.communitiesToReach || 0) - (editingData.impactMetrics?.communitiesReached || 0), 0);
+                          const remainingSchools = Math.max((editingData.targetMetrics?.schoolsToBuild || 0) - (editingData.impactMetrics?.schoolsBuilt || 0), 0);
+                          const remainingMeals = Math.max((editingData.targetMetrics?.mealsToProvide || 0) - (editingData.impactMetrics?.mealsProvided || 0), 0);
+                          const remainingCheckups = Math.max((editingData.targetMetrics?.medicalCheckupsToProvide || 0) - (editingData.impactMetrics?.medicalCheckups || 0), 0);
+                          
+                          setEditingData({
+                            ...editingData,
+                            impactPerDollar: {
+                              children: remainingChildren / remainingAmount,
+                              communities: remainingCommunities / remainingAmount,
+                              schools: remainingSchools / remainingAmount,
+                              meals: remainingMeals / remainingAmount,
+                              checkups: remainingCheckups / remainingAmount,
+                            }
+                          });
+                          setSnackbar({ 
+                            open: true, 
+                            message: `Impact per dollar calculated based on remaining work (${remainingAmount.toLocaleString()} remaining to raise)`, 
+                            severity: 'success' 
+                          });
+                        }}
+                        sx={{
+                          borderColor: 'var(--primary-green)',
+                          color: 'var(--primary-green)',
+                          '&:hover': {
+                            borderColor: 'var(--dark-green)',
+                            backgroundColor: 'rgba(0,255,140,0.05)'
+                          }
+                        }}
+                      >
+                        Auto-calculate Impact Per Dollar
+                      </Button>
+                      <Typography variant="caption" color="text.secondary" sx={{ ml: 2 }}>
+                        Automatically calculates impact per dollar based on target metrics and target amount
+                      </Typography>
+                    </Box>
                   </AccordionDetails>
                 </Accordion>
 
@@ -2750,21 +3211,30 @@ export default function AdminDashboard() {
                   sx={{ mb: 2 }}
                 >
                   <AccordionSummary expandIcon={<ExpandMore />}>
-                    <Typography variant="h6">Donation Options</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 600, color: 'var(--primary-green)' }}>
+                      💳 Donation Options
+                    </Typography>
                   </AccordionSummary>
                   <AccordionDetails>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                      Create predefined donation amounts that donors can choose from. These options make it easier for donors to contribute and understand the impact of their donation.
+                    </Typography>
                     <Grid container spacing={3}>
                       <Grid item xs={12}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                          <Typography variant="subtitle1">
+                          <Typography variant="h6" sx={{ fontWeight: 600, color: 'var(--primary-green)' }}>
                             Predefined Donation Amounts
                           </Typography>
                           {dialogType !== 'view' && (
                             <Button
-                              variant="outlined"
+                              variant="contained"
                               size="small"
                               onClick={addDonationOption}
                               startIcon={<Add />}
+                              sx={{ 
+                                background: 'var(--primary-green)',
+                                '&:hover': { background: 'var(--dark-green)' }
+                              }}
                             >
                               Add Option
                             </Button>
@@ -2772,15 +3242,28 @@ export default function AdminDashboard() {
                         </Box>
                         
                         {donationOptions.length === 0 ? (
-                          <Box sx={{ textAlign: 'center', py: 4, border: '2px dashed #ccc', borderRadius: 1 }}>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                          <Box sx={{ 
+                            textAlign: 'center', 
+                            py: 6, 
+                            border: '2px dashed rgba(0,255,140,0.3)', 
+                            borderRadius: 2,
+                            background: 'rgba(0,255,140,0.02)'
+                          }}>
+                            <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
                               No donation options added yet
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                              Add predefined donation amounts to make it easier for donors to contribute
                             </Typography>
                             {dialogType !== 'view' && (
                               <Button
-                                variant="outlined"
+                                variant="contained"
                                 onClick={addDonationOption}
                                 startIcon={<Add />}
+                                sx={{ 
+                                  background: 'var(--primary-green)',
+                                  '&:hover': { background: 'var(--dark-green)' }
+                                }}
                               >
                                 Add First Option
                               </Button>
@@ -2788,7 +3271,16 @@ export default function AdminDashboard() {
                           </Box>
                         ) : (
                           donationOptions.map((option, index) => (
-                            <Card key={option.id} sx={{ mb: 2, p: 2 }}>
+                            <Card key={option.id} sx={{ 
+                              mb: 2, 
+                              p: 3,
+                              border: '1px solid rgba(0,255,140,0.1)',
+                              borderRadius: 2,
+                              background: 'rgba(0,255,140,0.02)',
+                              '&:hover': {
+                                boxShadow: '0 4px 12px rgba(0,255,140,0.1)'
+                              }
+                            }}>
                               <Grid container spacing={2} alignItems="center">
                                 <Grid item xs={12} sm={3}>
                                   <TextField
@@ -2801,7 +3293,15 @@ export default function AdminDashboard() {
                                     InputProps={{
                                       startAdornment: <InputAdornment position="start">$</InputAdornment>,
                                     }}
-                                    size="small"
+                                    helperText="Donation amount"
+                                    inputProps={{ min: 1 }}
+                                    sx={{
+                                      '& .MuiOutlinedInput-root': {
+                                        '&:hover fieldset': {
+                                          borderColor: 'var(--primary-green)',
+                                        },
+                                      },
+                                    }}
                                   />
                                 </Grid>
                                 <Grid item xs={12} sm={4}>
@@ -2812,18 +3312,32 @@ export default function AdminDashboard() {
                                     onChange={(e) => updateDonationOption(option.id, 'description', e.target.value)}
                                     disabled={dialogType === 'view'}
                                     placeholder="e.g., Monthly Support"
-                                    size="small"
+                                    helperText="What this donation represents"
+                                    sx={{
+                                      '& .MuiOutlinedInput-root': {
+                                        '&:hover fieldset': {
+                                          borderColor: 'var(--primary-green)',
+                                        },
+                                      },
+                                    }}
                                   />
                                 </Grid>
                                 <Grid item xs={12} sm={4}>
                                   <TextField
                                     fullWidth
-                                    label="Impact"
+                                    label="Impact Description"
                                     value={option.impact}
                                     onChange={(e) => updateDonationOption(option.id, 'impact', e.target.value)}
                                     disabled={dialogType === 'view'}
                                     placeholder="e.g., Helps one child for a month"
-                                    size="small"
+                                    helperText="What impact this donation will have"
+                                    sx={{
+                                      '& .MuiOutlinedInput-root': {
+                                        '&:hover fieldset': {
+                                          borderColor: 'var(--primary-green)',
+                                        },
+                                      },
+                                    }}
                                   />
                                 </Grid>
                                 <Grid item xs={12} sm={1}>
@@ -2832,6 +3346,11 @@ export default function AdminDashboard() {
                                       onClick={() => removeDonationOption(option.id)}
                                       color="error"
                                       size="small"
+                                      sx={{
+                                        '&:hover': {
+                                          background: 'rgba(244, 67, 54, 0.1)'
+                                        }
+                                      }}
                                     >
                                       <Delete />
                                     </IconButton>
@@ -2844,35 +3363,28 @@ export default function AdminDashboard() {
                       </Grid>
                       
                       <Grid item xs={12}>
-                        <Button
-                          variant="outlined"
-                          color="secondary"
-                          disabled={dialogType === 'view'}
-                          sx={{ mb: 2 }}
-                          onClick={() => {
-                            const ta = parseFloat(editingData.targetAmount) || 1;
-                            setEditingData({
-                              ...editingData,
-                              impactPerDollar: {
-                                children: (editingData.targetMetrics?.childrenToHelp || 0) / ta,
-                                communities: (editingData.targetMetrics?.communitiesToReach || 0) / ta,
-                                schools: (editingData.targetMetrics?.schoolsToBuild || 0) / ta,
-                                meals: (editingData.targetMetrics?.mealsToProvide || 0) / ta,
-                                checkups: (editingData.targetMetrics?.medicalCheckupsToProvide || 0) / ta,
-                              },
-                              impactMetrics: {
-                                childrenHelped: editingData.targetMetrics?.childrenToHelp || 0,
-                                communitiesReached: editingData.targetMetrics?.communitiesToReach || 0,
-                                schoolsBuilt: editingData.targetMetrics?.schoolsToBuild || 0,
-                                mealsProvided: editingData.targetMetrics?.mealsToProvide || 0,
-                                medicalCheckups: editingData.targetMetrics?.medicalCheckupsToProvide || 0
-                              }
-                            });
-                            setSnackbar({ open: true, message: 'Impact metrics auto-calculated', severity: 'success' });
-                          }}
-                        >
-                          Auto-calculate Impact Metrics
-                        </Button>
+                        <Box sx={{ 
+                          p: 3, 
+                          bgcolor: 'rgba(0,255,140,0.05)', 
+                          borderRadius: 2, 
+                          border: '1px solid rgba(0,255,140,0.1)' 
+                        }}>
+                          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'var(--primary-green)' }}>
+                            💡 Tips for Great Donation Options
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            • Offer a range of amounts (e.g., $25, $50, $100, $250, $500)
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            • Use clear, emotional descriptions (e.g., "Feed a child for a month")
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            • Make impact descriptions specific and measurable
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            • Consider your target audience's giving capacity
+                          </Typography>
+                        </Box>
                       </Grid>
                     </Grid>
                   </AccordionDetails>

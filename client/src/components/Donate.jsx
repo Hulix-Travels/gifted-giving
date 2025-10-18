@@ -198,15 +198,9 @@ export default function Donate() {
       severity: 'success' 
     });
     
-    // Refetch programs after donation
+    // Refetch programs after donation (webhook will handle metrics update)
     if (typeof window !== 'undefined' && window.dispatchEvent) {
       window.dispatchEvent(new Event('programs:refresh'));
-    }
-
-    // Update program metrics
-    const amount = customAmount ? parseFloat(customAmount) : selectedAmount;
-    if (selectedProgram) {
-      updateProgramMetrics(selectedProgram, amount);
     }
 
     // Reset form
@@ -229,49 +223,6 @@ export default function Donate() {
     setSnackbar({ ...snackbar, open: false });
   };
 
-  // Update program metrics after donation
-  const updateProgramMetrics = async (programId, donationAmount) => {
-    try {
-      const program = programs.find(p => p._id === programId);
-      if (!program || !program.impactPerDollar) return;
-
-      const impact = calculateImpact(donationAmount);
-      
-      // Calculate new metrics
-      const newMetrics = {
-        childrenHelped: (program.impactMetrics?.childrenHelped || 0) + impact.children,
-        communitiesReached: (program.impactMetrics?.communitiesReached || 0) + impact.communities,
-        schoolsBuilt: (program.impactMetrics?.schoolsBuilt || 0) + impact.schools,
-        mealsProvided: (program.impactMetrics?.mealsProvided || 0) + impact.meals,
-        medicalCheckups: (program.impactMetrics?.medicalCheckups || 0) + impact.checkups
-      };
-
-      // Update current amount
-      const newCurrentAmount = (program.currentAmount || 0) + donationAmount;
-
-      // Send update to backend
-      await programsAPI.updateMetrics(programId, {
-        currentAmount: newCurrentAmount,
-        impactMetrics: newMetrics
-      });
-
-      // Update local state
-      setPrograms(prevPrograms => 
-        prevPrograms.map(p => 
-          p._id === programId 
-            ? { 
-                ...p, 
-                currentAmount: newCurrentAmount,
-                impactMetrics: newMetrics
-              }
-            : p
-        )
-      );
-
-    } catch (error) {
-      // console.error('Error updating program metrics:', error);
-    }
-  };
 
   const selectedProgramData = programs.find(p => p._id === selectedProgram);
   const donationOptions = getDonationOptions();
@@ -399,11 +350,17 @@ export default function Donate() {
                         {selectedProgramData.description}
                       </Typography>
                       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                        <Chip 
-                          label={`${selectedProgramData.impactMetrics?.childrenHelped || 0}+ Children Helped`}
-                          size="small"
-                          sx={{ bgcolor: 'var(--light-green)', color: 'var(--primary-green)' }}
-                        />
+                        {(selectedProgramData.impactMetrics?.childrenHelped > 0 || 
+                          selectedProgramData.impactMetrics?.communitiesReached > 0 || 
+                          selectedProgramData.impactMetrics?.schoolsBuilt > 0 || 
+                          selectedProgramData.impactMetrics?.mealsProvided > 0 || 
+                          selectedProgramData.impactMetrics?.medicalCheckups > 0) && (
+                          <Chip 
+                            label={`${selectedProgramData.impactMetrics?.childrenHelped || 0}+ Children Helped`}
+                            size="small"
+                            sx={{ bgcolor: 'var(--light-green)', color: 'var(--primary-green)' }}
+                          />
+                        )}
                         <Chip 
                           label={`${Math.round((selectedProgramData.currentAmount / selectedProgramData.targetAmount) * 100)}% Funded`}
                           size="small"

@@ -127,25 +127,34 @@ class StripeService {
   // Process webhook events
   static async processWebhook(event) {
     try {
+      console.log(`🔄 Processing webhook event: ${event.type}`);
+      console.log(`Event ID: ${event.id}`);
+      console.log(`Event data:`, JSON.stringify(event.data.object, null, 2));
+      
       switch (event.type) {
         case 'payment_intent.succeeded':
+          console.log('💰 Processing successful payment...');
           return await this.handlePaymentSuccess(event.data.object);
         
         case 'payment_intent.payment_failed':
+          console.log('❌ Processing failed payment...');
           return await this.handlePaymentFailure(event.data.object);
         
         case 'invoice.payment_succeeded':
+          console.log('🔄 Processing subscription payment...');
           return await this.handleSubscriptionPayment(event.data.object);
         
         case 'invoice.payment_failed':
+          console.log('❌ Processing subscription failure...');
           return await this.handleSubscriptionFailure(event.data.object);
         
         default:
-          console.log(`Unhandled event type: ${event.type}`);
-          return { status: 'ignored' };
+          console.log(`⚠️ Unhandled event type: ${event.type}`);
+          return { status: 'ignored', eventType: event.type };
       }
     } catch (error) {
-      console.error('Webhook processing error:', error);
+      console.error('❌ Webhook processing error:', error);
+      console.error('Error stack:', error.stack);
       throw error;
     }
   }
@@ -153,13 +162,16 @@ class StripeService {
   // Handle successful payment
   static async handlePaymentSuccess(paymentIntent) {
     try {
-      console.log(`Processing successful payment: ${paymentIntent.id}`);
-      console.log(`Payment amount: ${paymentIntent.amount / 100} ${paymentIntent.currency}`);
-      console.log(`Payment method: ${paymentIntent.payment_method_types.join(', ')}`);
+      console.log(`💰 Processing successful payment: ${paymentIntent.id}`);
+      console.log(`💵 Payment amount: ${paymentIntent.amount / 100} ${paymentIntent.currency}`);
+      console.log(`💳 Payment method: ${paymentIntent.payment_method_types.join(', ')}`);
+      console.log(`📝 Payment metadata:`, paymentIntent.metadata);
       
       // Update donation status in database
       const Donation = require('../models/Donation');
       const Program = require('../models/Program');
+      
+      console.log(`🔍 Looking for donation with payment intent ID: ${paymentIntent.id}`);
       
       const donation = await Donation.findOneAndUpdate(
         { stripePaymentIntentId: paymentIntent.id },
@@ -174,23 +186,101 @@ class StripeService {
       if (donation) {
         console.log(`✅ Payment completed for donation: ${donation._id}`);
         console.log(`💰 Amount: ${donation.amount} ${donation.currency}`);
+        console.log(`📊 Program ID: ${donation.program}`);
         
-        // Update program current amount
-        await Program.findByIdAndUpdate(donation.program, {
-          $inc: { currentAmount: donation.amount }
-        });
-        
-        console.log(`✅ Updated program current amount for donation ${donation._id}`);
+        // Update program current amount and impact metrics
+        const program = await Program.findById(donation.program);
+        if (program && program.impactPerDollar) {
+          // Calculate impact based on donation amount and impact per dollar
+          const impact = program.impactPerDollar;
+          const children = Math.floor(donation.amount * (impact.children || 0));
+          const communities = Math.floor(donation.amount * (impact.communities || 0));
+          const schools = Math.floor(donation.amount * (impact.schools || 0));
+          const meals = Math.floor(donation.amount * (impact.meals || 0));
+          const checkups = Math.floor(donation.amount * (impact.checkups || 0));
+          
+          const programUpdate = await Program.findByIdAndUpdate(donation.program, {
+            $inc: { 
+              currentAmount: donation.amount,
+              'impactMetrics.childrenHelped': children,
+              'impactMetrics.communitiesReached': communities,
+              'impactMetrics.schoolsBuilt': schools,
+              'impactMetrics.mealsProvided': meals,
+              'impactMetrics.medicalCheckups': checkups
+            }
+          }, { new: true });
+          
+          console.log(`✅ Updated program current amount and impact metrics for donation ${donation._id}`);
+          console.log(`📈 Program current amount: ${programUpdate?.currentAmount || 'Unknown'}`);
+          console.log(`👥 Impact added: ${children} children, ${communities} communities, ${schools} schools, ${meals} meals, ${checkups} checkups`);
+        } else {
+          // Just update current amount if no impact per dollar data
+          const programUpdate = await Program.findByIdAndUpdate(donation.program, {
+            $inc: { currentAmount: donation.amount }
+          }, { new: true });
+          
+          console.log(`✅ Updated program current amount for donation ${donation._id}`);
+          console.log(`📈 Program current amount: ${programUpdate?.currentAmount || 'Unknown'}`);
+        }
         
         // TODO: Send confirmation email
         // TODO: Send notification to admin
       } else {
         console.warn(`⚠️ No donation found for payment intent: ${paymentIntent.id}`);
+        console.warn(`🔍 Searched for stripePaymentIntentId: ${paymentIntent.id}`);
+        
+        // Let's also try to find by metadata
+        if (paymentIntent.metadata && paymentIntent.metadata.donationId) {
+          console.log(`🔍 Trying to find donation by metadata ID: ${paymentIntent.metadata.donationId}`);
+          const donationByMetadata = await Donation.findById(paymentIntent.metadata.donationId);
+          if (donationByMetadata) {
+            console.log(`✅ Found donation by metadata: ${donationByMetadata._id}`);
+            // Update this donation
+            donationByMetadata.paymentStatus = 'completed';
+            donationByMetadata.transactionId = paymentIntent.id;
+            donationByMetadata.updatedAt = new Date();
+            await donationByMetadata.save();
+            
+            // Update program current amount and impact metrics
+            const program = await Program.findById(donationByMetadata.program);
+            if (program && program.impactPerDollar) {
+              // Calculate impact based on donation amount and impact per dollar
+              const impact = program.impactPerDollar;
+              const children = Math.floor(donationByMetadata.amount * (impact.children || 0));
+              const communities = Math.floor(donationByMetadata.amount * (impact.communities || 0));
+              const schools = Math.floor(donationByMetadata.amount * (impact.schools || 0));
+              const meals = Math.floor(donationByMetadata.amount * (impact.meals || 0));
+              const checkups = Math.floor(donationByMetadata.amount * (impact.checkups || 0));
+              
+              await Program.findByIdAndUpdate(donationByMetadata.program, {
+                $inc: { 
+                  currentAmount: donationByMetadata.amount,
+                  'impactMetrics.childrenHelped': children,
+                  'impactMetrics.communitiesReached': communities,
+                  'impactMetrics.schoolsBuilt': schools,
+                  'impactMetrics.mealsProvided': meals,
+                  'impactMetrics.medicalCheckups': checkups
+                }
+              });
+              
+              console.log(`✅ Updated program metrics via metadata: ${children} children, ${communities} communities, ${schools} schools, ${meals} meals, ${checkups} checkups`);
+            } else {
+              // Just update current amount if no impact per dollar data
+              await Program.findByIdAndUpdate(donationByMetadata.program, {
+                $inc: { currentAmount: donationByMetadata.amount }
+              });
+            }
+            
+            console.log(`✅ Updated donation via metadata: ${donationByMetadata._id}`);
+            return { status: 'success', donation: donationByMetadata, paymentIntent };
+          }
+        }
       }
 
       return { status: 'success', donation, paymentIntent };
     } catch (error) {
       console.error('❌ Payment success handling error:', error);
+      console.error('Error stack:', error.stack);
       throw error;
     }
   }

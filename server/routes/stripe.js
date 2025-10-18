@@ -258,6 +258,33 @@ router.post('/create-subscription', [
   }
 });
 
+// @route   GET /api/stripe/webhook-test
+// @desc    Test webhook endpoint accessibility
+// @access  Public
+router.get('/webhook-test', (req, res) => {
+  console.log('🧪 Webhook test endpoint accessed');
+  res.json({ 
+    message: 'Webhook endpoint is accessible',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+    webhookSecretConfigured: !!process.env.STRIPE_WEBHOOK_SECRET
+  });
+});
+
+// @route   POST /api/stripe/webhook-test
+// @desc    Test webhook processing
+// @access  Public
+router.post('/webhook-test', express.raw({ type: 'application/json' }), (req, res) => {
+  console.log('🧪 Webhook test POST received');
+  console.log('Headers:', req.headers);
+  console.log('Body length:', req.body.length);
+  res.json({ 
+    message: 'Webhook test POST received successfully',
+    timestamp: new Date().toISOString(),
+    bodyLength: req.body.length
+  });
+});
+
 // @route   GET /api/stripe/payment-intent/:id
 // @desc    Get payment intent details
 // @access  Private

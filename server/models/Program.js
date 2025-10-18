@@ -24,7 +24,7 @@ const programSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['education', 'health', 'nutrition', 'emergency', 'infrastructure'],
+    enum: ['education', 'health', 'nutrition', 'emergency', 'infrastructure', 'other'],
     required: [true, 'Program category is required']
   },
   image: {
