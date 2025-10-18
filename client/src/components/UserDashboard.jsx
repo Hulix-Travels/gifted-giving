@@ -21,10 +21,9 @@ export default function UserDashboard() {
       try {
         const profileData = await authAPI.getProfile();
         const donationsData = await donationsAPI.getUserDonations({ limit: 100 });
-        const volunteerData = await volunteersAPI.getMyApplications({ limit: 100 });
+        
         setProfile(profileData.user || profileData);
         setDonations(donationsData.donations || []);
-        // Volunteer section removed for donor-only dashboard
       } catch (err) {
         setError('You must be logged in to view your dashboard.');
         setProfile(null);
@@ -90,128 +89,206 @@ export default function UserDashboard() {
     }, 300);
   };
 
-  if (loading) return <Box sx={{ py: 8, textAlign: 'center' }}><CircularProgress /></Box>;
-  if (error) return <Box sx={{ py: 8, textAlign: 'center', color: 'red' }}>{error}</Box>;
-  if (!profile) return <Box sx={{ py: 8, textAlign: 'center' }}>Could not load profile.</Box>;
+  if (loading) return (
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column',
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      height: '100vh',
+      background: '#fafafa'
+    }}>
+      <CircularProgress size={60} sx={{ mb: 2 }} />
+      <Typography variant="h6" sx={{ color: '#666' }}>Loading your dashboard...</Typography>
+    </Box>
+  );
+  if (error) return (
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column',
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      height: '100vh',
+      background: '#fafafa'
+    }}>
+      <Typography variant="h6" sx={{ color: 'red', mb: 2 }}>Error</Typography>
+      <Typography variant="body1" sx={{ color: '#666' }}>{error}</Typography>
+    </Box>
+  );
+  if (!profile) return (
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column',
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      height: '100vh',
+      background: '#fafafa'
+    }}>
+      <Typography variant="h6" sx={{ color: '#666' }}>Could not load profile.</Typography>
+    </Box>
+  );
 
   return (
-    <Box id="user-dashboard" sx={{ mt: { xs: 10, md: 12 }, py: { xs: 4, md: 6 }, background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' }}>
+    <Box id="user-dashboard" sx={{ mt: { xs: 10, md: 12 }, py: { xs: 4, md: 6 }, background: '#fafafa' }}>
       <Box sx={{ mb: 4, textAlign: 'center' }}>
-        <Typography variant="h4" sx={{ fontWeight: 700, color: 'var(--primary-green)', mb: 1 }}>
+        <Typography variant="h4" sx={{ fontWeight: 600, color: '#000', mb: 1 }}>
           {getGreeting()}, {profile.firstName}!
         </Typography>
         <Typography variant="body1" sx={{ color: '#666' }}>
-          Here’s your impact summary and activity.
+          Here's your impact summary and activity.
         </Typography>
       </Box>
       {/* Impact Summary */}
-      <Grid container spacing={3} justifyContent="center" sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={4} md={2.5}>
-          <Card elevation={4} sx={{
+      <Grid container spacing={2} sx={{ mb: 4, maxWidth: 800, mx: 'auto' }}>
+        <Grid item xs={12} sm={4}>
+          <Card sx={{
             textAlign: 'center',
             p: 2,
-            borderRadius: 3,
-            background: 'linear-gradient(135deg, #e8f5e8 60%, #c3cfe2 100%)',
-            boxShadow: '0 4px 24px rgba(0,255,140,0.08)',
-            transition: 'transform 0.2s, box-shadow 0.2s',
-            '&:hover': {
-              transform: 'translateY(-4px) scale(1.03)',
-              boxShadow: '0 8px 32px rgba(0,255,140,0.16)'
-            }
+            borderRadius: 1,
+            background: '#fff',
+            border: '1px solid #ddd',
+            boxShadow: 'none',
+            height: '100%'
           }}>
-            <Box sx={{ color: 'var(--accent-green)', mb: 1, fontSize: 32 }}><Favorite fontSize="inherit" /></Box>
-            <Typography variant="h4" sx={{ color: 'var(--primary-green)', fontWeight: 700 }}>{childrenHelped}</Typography>
-            <Typography variant="body2">Children Helped</Typography>
+            <Box sx={{ color: '#999', mb: 1, fontSize: 28 }}><Favorite fontSize="inherit" /></Box>
+            <Typography variant="h5" sx={{ color: '#000', fontWeight: 600, mb: 0.5 }}>{childrenHelped}</Typography>
+            <Typography variant="body2" sx={{ color: '#666', fontSize: '0.875rem' }}>Children Helped</Typography>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={4} md={2.5}>
-          <Card elevation={4} sx={{
+        <Grid item xs={12} sm={4}>
+          <Card sx={{
             textAlign: 'center',
             p: 2,
-            borderRadius: 3,
-            background: 'linear-gradient(135deg, #e8f5e8 60%, #c3cfe2 100%)',
-            boxShadow: '0 4px 24px rgba(0,255,140,0.08)',
-            transition: 'transform 0.2s, box-shadow 0.2s',
-            '&:hover': {
-              transform: 'translateY(-4px) scale(1.03)',
-              boxShadow: '0 8px 32px rgba(0,255,140,0.16)'
-            }
+            borderRadius: 1,
+            background: '#fff',
+            border: '1px solid #ddd',
+            boxShadow: 'none',
+            height: '100%'
           }}>
-            <Box sx={{ color: 'var(--accent-green)', mb: 1, fontSize: 32 }}><People fontSize="inherit" /></Box>
-            <Typography variant="h4" sx={{ color: 'var(--primary-green)', fontWeight: 700 }}>{communitiesSupported}</Typography>
-            <Typography variant="body2">Communities Supported</Typography>
+            <Box sx={{ color: '#999', mb: 1, fontSize: 28 }}><People fontSize="inherit" /></Box>
+            <Typography variant="h5" sx={{ color: '#000', fontWeight: 600, mb: 0.5 }}>{communitiesSupported}</Typography>
+            <Typography variant="body2" sx={{ color: '#666', fontSize: '0.875rem' }}>Communities Supported</Typography>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={4} md={2.5}>
-          <Card elevation={4} sx={{
+        <Grid item xs={12} sm={4}>
+          <Card sx={{
             textAlign: 'center',
             p: 2,
-            borderRadius: 3,
-            background: 'linear-gradient(135deg, #e8f5e8 60%, #c3cfe2 100%)',
-            boxShadow: '0 4px 24px rgba(0,255,140,0.08)',
-            transition: 'transform 0.2s, box-shadow 0.2s',
-            '&:hover': {
-              transform: 'translateY(-4px) scale(1.03)',
-              boxShadow: '0 8px 32px rgba(0,255,140,0.16)'
-            }
+            borderRadius: 1,
+            background: '#fff',
+            border: '1px solid #ddd',
+            boxShadow: 'none',
+            height: '100%'
           }}>
-            <Box sx={{ color: 'var(--accent-green)', mb: 1, fontSize: 32 }}><School fontSize="inherit" /></Box>
-            <Typography variant="h4" sx={{ color: 'var(--primary-green)', fontWeight: 700 }}>{programsSupported}</Typography>
-            <Typography variant="body2">Programs Supported</Typography>
+            <Box sx={{ color: '#999', mb: 1, fontSize: 28 }}><School fontSize="inherit" /></Box>
+            <Typography variant="h5" sx={{ color: '#000', fontWeight: 600, mb: 0.5 }}>{programsSupported}</Typography>
+            <Typography variant="body2" sx={{ color: '#666', fontSize: '0.875rem' }}>Programs Supported</Typography>
           </Card>
         </Grid>
       </Grid>
       {/* Profile Info */}
-      <Card elevation={4} sx={{ maxWidth: 500, mx: 'auto', mb: 4, borderRadius: 3, background: '#fff', boxShadow: '0 4px 24px rgba(0,255,140,0.08)' }}>
-        <CardContent>
-          <Typography variant="h5" sx={{ mb: 2, fontWeight: 700, color: 'var(--primary-green)' }}>Profile Information</Typography>
-          <Box display="flex" alignItems="center" gap={1} mb={1}>
-            <Person sx={{ color: 'var(--accent-green)' }} />
-            <Typography><strong>Name:</strong> {profile.firstName} {profile.lastName}</Typography>
-          </Box>
-          <Box display="flex" alignItems="center" gap={1} mb={1}>
-            <Email sx={{ color: 'var(--accent-green)' }} />
-            <Typography><strong>Email:</strong> {profile.email}</Typography>
-          </Box>
-          {profile.phone && (
-            <Box display="flex" alignItems="center" gap={1} mb={1}>
-              <Phone sx={{ color: 'var(--accent-green)' }} />
-              <Typography><strong>Phone:</strong> {profile.phone}</Typography>
-            </Box>
-          )}
-          {profile.location && (
-            <Box display="flex" alignItems="center" gap={1} mb={1}>
-              <LocationOn sx={{ color: 'var(--accent-green)' }} />
-              <Typography><strong>Location:</strong> {profile.location}</Typography>
-            </Box>
-          )}
-          <Button variant="outlined" sx={{ mt: 2 }} onClick={handleEditOpen}>Edit Profile</Button>
+      <Card sx={{ maxWidth: 600, mx: 'auto', mb: 4, borderRadius: 1, background: '#fff', border: '1px solid #ddd', boxShadow: 'none' }}>
+        <CardContent sx={{ p: 3 }}>
+          <Typography variant="h6" sx={{ mb: 3, fontWeight: 600, color: '#000' }}>Profile Information</Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <Box display="flex" alignItems="center" gap={1} mb={2}>
+                <Person sx={{ color: '#999', fontSize: 20 }} />
+                <Box>
+                  <Typography variant="body2" sx={{ color: '#666', fontSize: '0.75rem' }}>Name</Typography>
+                  <Typography variant="body1" sx={{ color: '#000', fontWeight: 500 }}>{profile.firstName} {profile.lastName}</Typography>
+                </Box>
+              </Box>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Box display="flex" alignItems="center" gap={1} mb={2}>
+                <Email sx={{ color: '#999', fontSize: 20 }} />
+                <Box>
+                  <Typography variant="body2" sx={{ color: '#666', fontSize: '0.75rem' }}>Email</Typography>
+                  <Typography variant="body1" sx={{ color: '#000', fontWeight: 500 }}>{profile.email}</Typography>
+                </Box>
+              </Box>
+            </Grid>
+            {profile.phone && (
+              <Grid item xs={12} sm={6}>
+                <Box display="flex" alignItems="center" gap={1} mb={2}>
+                  <Phone sx={{ color: '#999', fontSize: 20 }} />
+                  <Box>
+                    <Typography variant="body2" sx={{ color: '#666', fontSize: '0.75rem' }}>Phone</Typography>
+                    <Typography variant="body1" sx={{ color: '#000', fontWeight: 500 }}>{profile.phone}</Typography>
+                  </Box>
+                </Box>
+              </Grid>
+            )}
+            {profile.location && (
+              <Grid item xs={12} sm={6}>
+                <Box display="flex" alignItems="center" gap={1} mb={2}>
+                  <LocationOn sx={{ color: '#999', fontSize: 20 }} />
+                  <Box>
+                    <Typography variant="body2" sx={{ color: '#666', fontSize: '0.75rem' }}>Location</Typography>
+                    <Typography variant="body1" sx={{ color: '#000', fontWeight: 500 }}>{profile.location}</Typography>
+                  </Box>
+                </Box>
+              </Grid>
+            )}
+          </Grid>
+          <Button variant="outlined" sx={{ mt: 2, borderColor: '#ddd', color: '#666' }} onClick={handleEditOpen}>Edit Profile</Button>
         </CardContent>
       </Card>
       {/* Donation History */}
-      <Card elevation={4} sx={{ maxWidth: 700, mx: 'auto', mb: 4, borderRadius: 3, background: '#fff', boxShadow: '0 4px 24px rgba(0,255,140,0.08)' }}>
-        <CardContent>
-          <Typography variant="h5" sx={{ mb: 2, fontWeight: 700, color: 'var(--primary-green)' }}>Donation History</Typography>
+      <Card sx={{ maxWidth: 800, mx: 'auto', mb: 4, borderRadius: 1, background: '#fff', border: '1px solid #ddd', boxShadow: 'none' }}>
+        <CardContent sx={{ p: 3 }}>
+          <Typography variant="h6" sx={{ mb: 3, fontWeight: 600, color: '#000' }}>Donation History</Typography>
           {donations.length === 0 ? (
-            <Typography>No donations yet.</Typography>
+            <Typography sx={{ color: '#666', textAlign: 'center', py: 2 }}>No donations yet.</Typography>
           ) : (
-            donations.map(donation => (
-              <Box key={donation._id} sx={{ mb: 2 }}>
-                <Typography variant="body2">
-                  <strong>${donation.amount}</strong> to {donation.program?.name || 'General'} on {new Date(donation.createdAt).toLocaleDateString()}
+            <Box>
+              {donations.map((donation, index) => (
+                <Box key={donation._id} sx={{ 
+                  mb: 2, 
+                  p: 2, 
+                  border: '1px solid #f0f0f0', 
+                  borderRadius: 1,
+                  background: '#fafafa'
+                }}>
+                  <Box display="flex" justifyContent="space-between" alignItems="center">
+                    <Box>
+                      <Typography variant="body1" sx={{ color: '#000', fontWeight: 500 }}>
+                        ${donation.amount}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: '#666' }}>
+                        to {donation.program?.name || 'General'}
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2" sx={{ color: '#999' }}>
+                      {new Date(donation.createdAt).toLocaleDateString()}
+                    </Typography>
+                  </Box>
+                </Box>
+              ))}
+              <Divider sx={{ my: 3 }} />
+              <Box sx={{ textAlign: 'center', p: 2, background: '#f8f8f8', borderRadius: 1 }}>
+                <Typography variant="body1" sx={{ fontWeight: 600, color: '#000' }}>
+                  Total Donated: <strong>${totalDonated}</strong>
                 </Typography>
               </Box>
-            ))
+            </Box>
           )}
-          <Divider sx={{ my: 2 }} />
-          <Typography variant="body1" sx={{ fontWeight: 700 }}>
-            Total Donated: <strong>${totalDonated}</strong>
-          </Typography>
         </CardContent>
       </Card>
       {/* Call to Action */}
       <Box sx={{ textAlign: 'center', mt: 4 }}>
-        <Button variant="contained" color="primary" onClick={handleDonateAgain} sx={{ mr: 2 }}>
+        <Button 
+          variant="contained" 
+          onClick={handleDonateAgain} 
+          sx={{ 
+            backgroundColor: '#000', 
+            color: '#fff',
+            '&:hover': { backgroundColor: '#333' },
+            px: 4,
+            py: 1.5
+          }}
+        >
           Donate Again
         </Button>
       </Box>

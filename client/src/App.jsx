@@ -17,6 +17,13 @@ function AdminRoute({ children }) {
   return children;
 }
 
+function ProtectedRoute({ children }) {
+  const { user, loading } = useAuth();
+  if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Loading...</Box>;
+  if (!user) return <Navigate to="/" />;
+  return children;
+}
+
 function App() {
   return (
     <AuthProvider>
@@ -26,7 +33,7 @@ function App() {
           <Box sx={{ flex: 1 }}>
         <Routes>
           <Route path="/verify-email" element={<VerifyEmail />} />
-          <Route path="/dashboard" element={<UserDashboard />} />
+          <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
           <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
           <Route path="/" element={<Home />} />
         </Routes>

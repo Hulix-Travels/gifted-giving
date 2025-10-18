@@ -2312,11 +2312,6 @@ export default function AdminDashboard() {
                               }
                               return selected;
                             }}
-                            sx={{
-                              '&:hover .MuiOutlinedInput-notchedOutline': {
-                                borderColor: 'var(--primary-green)',
-                              },
-                            }}
                           >
                             <MenuItem value="education">Education</MenuItem>
                             <MenuItem value="health">Health</MenuItem>
@@ -2459,17 +2454,19 @@ export default function AdminDashboard() {
                       </Grid>
                       <Grid item xs={12} md={6}>
                         <FormControl fullWidth error={!!formErrors.currency}>
-                          <InputLabel>Currency *</InputLabel>
+                          <InputLabel shrink>Currency *</InputLabel>
                           <Select
                             value={dialogType === 'view' ? selectedItem.data?.currency || 'USD' : editingData.currency || 'USD'}
                             onChange={(e) => handleFieldChange('currency', e.target.value)}
                             disabled={dialogType === 'view'}
                             label="Currency *"
                             required
-                            sx={{
-                              '&:hover .MuiOutlinedInput-notchedOutline': {
-                                borderColor: 'var(--primary-green)',
-                              },
+                            displayEmpty
+                            renderValue={(selected) => {
+                              if (!selected || selected === 'USD') {
+                                return <em style={{ color: '#999' }}>Select a currency</em>;
+                              }
+                              return selected;
                             }}
                           >
                             <MenuItem value="USD">🇺🇸 USD - US Dollar</MenuItem>
@@ -2697,17 +2694,19 @@ export default function AdminDashboard() {
                       </Grid>
                       <Grid item xs={12} md={6}>
                         <FormControl fullWidth error={!!formErrors.status}>
-                          <InputLabel>Program Status *</InputLabel>
+                          <InputLabel shrink>Program Status *</InputLabel>
                           <Select
                             value={dialogType === 'view' ? selectedItem.data?.status || 'active' : editingData.status || 'active'}
                             onChange={(e) => handleFieldChange('status', e.target.value)}
                             disabled={dialogType === 'view'}
                             required={dialogType === 'create'}
                             label="Program Status *"
-                            sx={{
-                              '&:hover .MuiOutlinedInput-notchedOutline': {
-                                borderColor: 'var(--primary-green)',
-                              },
+                            displayEmpty
+                            renderValue={(selected) => {
+                              if (!selected || selected === 'active') {
+                                return <em style={{ color: '#999' }}>Select program status</em>;
+                              }
+                              return selected;
                             }}
                           >
                             <MenuItem value="active">Active - Currently accepting donations</MenuItem>
@@ -2720,16 +2719,18 @@ export default function AdminDashboard() {
                       </Grid>
                       <Grid item xs={12} md={6}>
                         <FormControl fullWidth>
-                          <InputLabel>Priority Level</InputLabel>
+                          <InputLabel shrink>Priority Level</InputLabel>
                           <Select
                             value={dialogType === 'view' ? selectedItem.data?.priority || 'medium' : editingData.priority || 'medium'}
                             onChange={(e) => handleFieldChange('priority', e.target.value)}
                             disabled={dialogType === 'view'}
                             label="Priority Level"
-                            sx={{
-                              '&:hover .MuiOutlinedInput-notchedOutline': {
-                                borderColor: 'var(--primary-green)',
-                              },
+                            displayEmpty
+                            renderValue={(selected) => {
+                              if (!selected || selected === 'medium') {
+                                return <em style={{ color: '#999' }}>Select priority level</em>;
+                              }
+                              return selected;
                             }}
                           >
                             <MenuItem value="low">Low Priority</MenuItem>
@@ -2741,17 +2742,12 @@ export default function AdminDashboard() {
                       </Grid>
                       <Grid item xs={12} md={6}>
                         <FormControl fullWidth>
-                          <InputLabel>Featured Program</InputLabel>
+                          <InputLabel shrink>Featured Program</InputLabel>
                           <Select
                             value={dialogType === 'view' ? selectedItem.data?.featured || false : editingData.featured || false}
                             onChange={(e) => handleFieldChange('featured', e.target.value)}
                             disabled={dialogType === 'view'}
                             label="Featured Program"
-                            sx={{
-                              '&:hover .MuiOutlinedInput-notchedOutline': {
-                                borderColor: 'var(--primary-green)',
-                              },
-                            }}
                           >
                             <MenuItem value={true}>Yes - Show on homepage</MenuItem>
                             <MenuItem value={false}>No - Regular listing</MenuItem>
@@ -3450,13 +3446,20 @@ export default function AdminDashboard() {
                   </Grid>
                   <Grid item xs={12} md={6}>
                     <FormControl fullWidth>
-                      <InputLabel>Location</InputLabel>
+                      <InputLabel shrink>Location</InputLabel>
                       <Select
                         value={dialogType === 'create' ? editingData.location || '' : (dialogType === 'view' ? selectedItem.data?.location || '' : (editingData.location || selectedItem.data?.location || ''))}
                         onChange={(e) => setEditingData({...editingData, location: e.target.value})}
                         disabled={dialogType === 'view'}
                         required={dialogType === 'create'}
                         label="Location"
+                        displayEmpty
+                        renderValue={(selected) => {
+                          if (!selected) {
+                            return <em style={{ color: '#999' }}>Select a location</em>;
+                          }
+                          return selected;
+                        }}
                       >
                         <MenuItem value="local">Local</MenuItem>
                         <MenuItem value="nairobi">Nairobi</MenuItem>
@@ -3469,7 +3472,7 @@ export default function AdminDashboard() {
                   </Grid>
                   <Grid item xs={12}>
                     <FormControl fullWidth>
-                      <InputLabel>Skills</InputLabel>
+                      <InputLabel shrink>Skills</InputLabel>
                       <Select
                         multiple
                         value={dialogType === 'create' ? editingData.skills || [] : (selectedItem.data?.skills || [])}
@@ -3477,6 +3480,13 @@ export default function AdminDashboard() {
                         disabled={dialogType === 'view'}
                         required={dialogType === 'create'}
                         label="Skills"
+                        displayEmpty
+                        renderValue={(selected) => {
+                          if (!selected || selected.length === 0) {
+                            return <em style={{ color: '#999' }}>Select skills</em>;
+                          }
+                          return selected.join(', ');
+                        }}
                       >
                         <MenuItem value="teaching">Teaching</MenuItem>
                         <MenuItem value="medical">Medical</MenuItem>
@@ -3507,13 +3517,20 @@ export default function AdminDashboard() {
                   </Grid>
                   <Grid item xs={12} md={6}>
                     <FormControl fullWidth>
-                      <InputLabel>Availability</InputLabel>
+                      <InputLabel shrink>Availability</InputLabel>
                       <Select
                         value={dialogType === 'create' ? editingData.availability || '' : (dialogType === 'view' ? selectedItem.data?.availability || '' : (editingData.availability || selectedItem.data?.availability || ''))}
                         onChange={(e) => setEditingData({...editingData, availability: e.target.value})}
                         disabled={dialogType === 'view'}
                         required={dialogType === 'create'}
                         label="Availability"
+                        displayEmpty
+                        renderValue={(selected) => {
+                          if (!selected) {
+                            return <em style={{ color: '#999' }}>Select availability</em>;
+                          }
+                          return selected;
+                        }}
                       >
                         <MenuItem value="fulltime">Full Time</MenuItem>
                         <MenuItem value="parttime">Part Time</MenuItem>
@@ -3526,13 +3543,20 @@ export default function AdminDashboard() {
                   </Grid>
                   <Grid item xs={12} md={6}>
                     <FormControl fullWidth>
-                      <InputLabel>Commitment</InputLabel>
+                      <InputLabel shrink>Commitment</InputLabel>
                       <Select
                         value={dialogType === 'create' ? editingData.commitment || '' : (dialogType === 'view' ? selectedItem.data?.commitment || '' : (editingData.commitment || selectedItem.data?.commitment || ''))}
                         onChange={(e) => setEditingData({...editingData, commitment: e.target.value})}
                         disabled={dialogType === 'view'}
                         required={dialogType === 'create'}
                         label="Commitment"
+                        displayEmpty
+                        renderValue={(selected) => {
+                          if (!selected) {
+                            return <em style={{ color: '#999' }}>Select commitment level</em>;
+                          }
+                          return selected;
+                        }}
                       >
                         <MenuItem value="high">High</MenuItem>
                         <MenuItem value="medium">Medium</MenuItem>

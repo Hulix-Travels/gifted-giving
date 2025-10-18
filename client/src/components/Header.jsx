@@ -79,9 +79,15 @@ export default function Header() {
   };
 
   const scrollToSection = (href) => {
-    const element = document.querySelector(href);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
+    // Check if we're on the home page
+    if (window.location.pathname === '/') {
+      const element = document.querySelector(href);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    } else {
+      // Navigate to home page with hash
+      navigate(`/${href}`);
     }
     setDrawerOpen(false);
   };

@@ -23,6 +23,7 @@ import {
   AccessTime
 } from '@mui/icons-material';
 import { newsletterAPI } from '../services/api';
+import { useNavigate } from 'react-router-dom';
 
 export default function Footer() {
   const [email, setEmail] = useState('');
@@ -32,12 +33,19 @@ export default function Footer() {
     message: '',
     severity: 'success'
   });
+  const navigate = useNavigate();
 
   // Handle smooth scrolling to sections
   const scrollToSection = (sectionId) => {
-    const element = document.getElementById(sectionId);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
+    // Check if we're on the home page
+    if (window.location.pathname === '/') {
+      const element = document.getElementById(sectionId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    } else {
+      // Navigate to home page with hash
+      navigate(`/#${sectionId}`);
     }
   };
 
