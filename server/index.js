@@ -32,8 +32,16 @@ app.use(cors({
     const allowedOrigins = [
       'http://localhost:3000',
       'http://localhost:5173',
-      'http://127.0.0.1:5173'
+      'http://127.0.0.1:5173',
+      'https://www.giftedgivings.com',
+      'https://giftedgivings.com'
     ];
+    
+    // Also check if the origin matches the CLIENT_URL environment variable
+    const clientUrl = process.env.CLIENT_URL;
+    if (clientUrl && origin === clientUrl) {
+      return callback(null, true);
+    }
     
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
