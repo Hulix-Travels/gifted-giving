@@ -34,7 +34,8 @@ app.use(cors({
       'http://localhost:5173',
       'http://127.0.0.1:5173',
       'https://www.giftedgivings.com',
-      'https://giftedgivings.com'
+      'https://giftedgivings.com',
+      'https://gifted-givings-9l6iaf34u-julius-kazibwe-s-projects.vercel.app'
     ];
     
     // Also check if the origin matches the CLIENT_URL environment variable
