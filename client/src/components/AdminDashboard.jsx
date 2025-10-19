@@ -465,7 +465,7 @@ export default function AdminDashboard() {
           }
           break;
         case 'category':
-          if (!value || !['education','health','nutrition','emergency','infrastructure','other'].includes(value)) {
+          if (!value || !['education','health','nutrition','emergency','infrastructure','disaster','water provision','human development','other'].includes(value)) {
             errors.category = 'Please select a valid category';
           }
           break;
@@ -2318,6 +2318,9 @@ export default function AdminDashboard() {
                             <MenuItem value="nutrition">Nutrition</MenuItem>
                             <MenuItem value="emergency">Emergency</MenuItem>
                             <MenuItem value="infrastructure">Infrastructure</MenuItem>
+                            <MenuItem value="disaster">Disaster</MenuItem>
+                            <MenuItem value="water provision">Water Provision</MenuItem>
+                            <MenuItem value="human development">Human Development</MenuItem>
                             <MenuItem value="other">Other</MenuItem>
                           </Select>
                           {formErrors.category && <FormHelperText>{formErrors.category}</FormHelperText>}

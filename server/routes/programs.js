@@ -111,7 +111,7 @@ router.post('/', [
   body('name').trim().isLength({ min: 3, max: 100 }).withMessage('Name must be between 3 and 100 characters'),
   body('description').isLength({ min: 10, max: 1000 }).withMessage('Description must be between 10 and 1000 characters'),
   body('longDescription').isLength({ min: 50 }).withMessage('Long description must be at least 50 characters'),
-  body('category').isIn(['education', 'health', 'nutrition', 'emergency', 'infrastructure', 'other']),
+  body('category').isIn(['education', 'health', 'nutrition', 'emergency', 'infrastructure', 'disaster', 'water provision', 'human development', 'other']),
   body('targetAmount').isFloat({ min: 1 }).withMessage('Target amount must be greater than 0'),
   body('currency').optional().isIn(['USD', 'EUR', 'GBP', 'KES', 'UGX']),
   body('location.country').notEmpty().withMessage('Country is required'),
@@ -170,7 +170,7 @@ router.put('/:id', [
   body('name').optional().trim().isLength({ min: 3, max: 100 }),
   body('description').optional().isLength({ min: 10, max: 1000 }),
   body('longDescription').optional().isLength({ min: 50 }),
-  body('category').optional().isIn(['education', 'health', 'nutrition', 'emergency', 'infrastructure', 'other']),
+  body('category').optional().isIn(['education', 'health', 'nutrition', 'emergency', 'infrastructure', 'disaster', 'water provision', 'human development', 'other']),
   body('targetAmount').optional().isFloat({ min: 1 }),
   body('status').optional().isIn(['active', 'completed', 'paused', 'upcoming'])
 ], async (req, res) => {
