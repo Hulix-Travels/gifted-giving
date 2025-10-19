@@ -18,7 +18,7 @@
     "education",
     "health"
   ],
-  "author": "Gifted Giving Team",
+  "author": "Gifted givings Team",
   "license": "MIT",
   "devDependencies": {
     "concurrently": "^8.2.2"

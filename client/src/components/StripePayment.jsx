@@ -37,7 +37,7 @@ import {
 import { stripeAPI } from '../services/api';
 
 // Load Stripe with your publishable key
-const stripePromise = loadStripe('pk_test_51RhMg2QR8d2LcBasSx0AiTAeNQFbOmavHh8q9LvE9OyAd8Y2MawJ0LMgWq6dppC3k1nEpLE50AznemCnWLC7MlLZ00Zumt7zZj');
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_51RhMg2QR8d2LcBasSx0AiTAeNQFbOmavHh8q9LvE9OyAd8Y2MawJ0LMgWq6dppC3k1nEpLE50AznemCnWLC7MlLZ00Zumt7zZj');
 
 const CARD_ELEMENT_OPTIONS = {
   style: {
@@ -422,40 +422,6 @@ function CheckoutForm({ amount, currency = 'usd', onSuccess, onError, donationDa
           By clicking "Pay", you authorize this transaction and agree to our terms of service.
         </Typography>
 
-        {/* Test Card Information */}
-        <Card sx={{ mt: 3, background: '#fff3cd', border: '1px solid #ffeaa7' }}>
-          <CardContent>
-            <Typography variant="h6" sx={{ mb: 2, color: '#856404', display: 'flex', alignItems: 'center', gap: 1 }}>
-              <CreditCard />
-              Test Card Information
-            </Typography>
-            <Typography variant="body2" sx={{ color: '#856404', mb: 2 }}>
-              Use these test card details to simulate payments (no real charges will be made):
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#856404' }}>
-                  Successful Payment:
-                </Typography>
-                <Typography variant="caption" sx={{ color: '#856404' }}>
-                  Card: 4242 4242 4242 4242<br/>
-                  Expiry: Any future date<br/>
-                  CVC: Any 3 digits
-                </Typography>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#856404' }}>
-                  Requires Authentication:
-                </Typography>
-                <Typography variant="caption" sx={{ color: '#856404' }}>
-                  Card: 4000 0025 0000 3155<br/>
-                  Expiry: Any future date<br/>
-                  CVC: Any 3 digits
-                </Typography>
-              </Grid>
-            </Grid>
-          </CardContent>
-        </Card>
       </form>
     </Box>
   );

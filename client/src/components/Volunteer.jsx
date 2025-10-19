@@ -761,7 +761,7 @@ export default function Volunteer() {
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
-                    label="Tell us why you want to volunteer with Gifted Giving"
+                    label="Tell us why you want to volunteer with Gifted givings"
                     name="message"
                     value={formData.message}
                     onChange={handleChange}

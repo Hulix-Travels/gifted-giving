@@ -34,7 +34,7 @@ export default function Hero() {
         display: 'flex',
         alignItems: 'center',
         position: 'relative',
-        background: `linear-gradient(135deg, rgba(1,55,31,0.5), rgba(0,36,17,0.5)), url(https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80)`,
+        background: `linear-gradient(135deg, rgba(1,55,31,0.5), rgba(0,36,17,0.5)), url(/heroimge.jpg)`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundAttachment: 'fixed',
@@ -99,7 +99,7 @@ export default function Hero() {
               fontWeight: 400
             }}
           >
-            At Gifted Giving, we bridge the gap between generosity and need. Join us in providing 
+            At Gifted givings, we bridge the gap between generosity and need. Join us in providing 
             education, healthcare, and hope to children in underserved communities worldwide.
           </Typography>
 

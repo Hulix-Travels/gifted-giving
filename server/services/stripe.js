@@ -22,7 +22,7 @@ class StripeService {
         setup_future_usage: 'off_session',
         capture_method: 'automatic',
         // Add description for better tracking
-        description: `Donation to Gifted Giving - ${metadata.programId || 'General Fund'}`,
+        description: `Donation to Gifted givings - ${metadata.programId || 'General Fund'}`,
       });
 
       console.log(`✅ Payment intent created: ${paymentIntent.id}`);
@@ -108,7 +108,7 @@ class StripeService {
         currency: currency.toLowerCase(),
         recurring: { interval },
         product_data: {
-          name: 'Gifted Giving Donation',
+          name: 'Gifted givings Donation',
           description: 'Recurring donation to support children in need',
           metadata: {
             ...metadata,

@@ -16,7 +16,7 @@ describe('Health Check', () => {
     const response = await request(app).get('/api/health');
     expect(response.status).toBe(200);
     expect(response.body).toHaveProperty('status', 'OK');
-    expect(response.body).toHaveProperty('message', 'Gifted Giving API is running');
+    expect(response.body).toHaveProperty('message', 'Gifted givings API is running');
     expect(response.body).toHaveProperty('timestamp');
   });
 

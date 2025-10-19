@@ -1093,7 +1093,7 @@ export default function AdminDashboard() {
             alignItems: 'center',
             gap: 2
           }}>
-            <Dashboard />
+            {/* <Dashboard /> */}
             Admin Dashboard
           </Typography>
           <Typography variant="body1" sx={{ color: '#666' }}>

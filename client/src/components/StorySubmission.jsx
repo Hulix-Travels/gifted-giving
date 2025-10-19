@@ -161,7 +161,7 @@ export default function StorySubmission({ open, onClose }) {
 
         <DialogContent sx={{ p: 4 }}>
           <Typography variant="body1" sx={{ mb: 3, color: 'var(--gray)' }}>
-            Help us inspire others by sharing how Gifted Giving has made a difference in your life or community. 
+            Help us inspire others by sharing how Gifted givings has made a difference in your life or community. 
             Your story will be reviewed before being published on our website.
           </Typography>
 
@@ -272,7 +272,7 @@ export default function StorySubmission({ open, onClose }) {
               value={formData.content}
               onChange={handleChange('content')}
               disabled={loading}
-              placeholder="Tell us about your experience with Gifted Giving. How has it impacted you or your community? What difference has it made?"
+              placeholder="Tell us about your experience with Gifted givings. How has it impacted you or your community? What difference has it made?"
               sx={{
                 mb: 3,
                 '& .MuiOutlinedInput-root': {

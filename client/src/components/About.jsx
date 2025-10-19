@@ -150,7 +150,7 @@ export default function About() {
                   color: 'var(--gray)'
                 }}
               >
-                Founded in 2020, Gifted Giving is dedicated to transforming the lives of children 
+                Founded in 2020, Gifted givings is dedicated to transforming the lives of children 
                 through education, nutrition, and healthcare initiatives. We believe every child 
                 has the right to thrive, regardless of their circumstances.
               </Typography>
@@ -193,7 +193,7 @@ export default function About() {
           <Grid xs={12} md={6}>
             <Box
               component="img"
-              src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80"
+              src="/aboutimage.jpg"
               alt="Children learning"
               sx={{
                 width: '100%',

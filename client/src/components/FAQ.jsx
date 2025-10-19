@@ -39,7 +39,7 @@ const faqs = [
     icon: <School />
   },
   {
-    question: "What makes Gifted Giving different from other charities?",
+    question: "What makes Gifted givings different from other charities?",
     answer: "We focus on sustainable, community-driven solutions rather than short-term aid. Our programs are designed with local input, use technology for transparency, and prioritize long-term impact over quick fixes. Every program is measured for effectiveness and adjusted based on results.",
     icon: <Public />
   }

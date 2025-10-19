@@ -295,7 +295,7 @@ export default function PaymentProcessor({ open, onClose, donationData, onSucces
                     Account: 1234-5678-9012-3456
                   </Typography>
                   <Typography variant="body2">
-                    Bank: Gifted Giving Bank
+                    Bank: Gifted givings Bank
                   </Typography>
                   <Typography variant="body2">
                     Reference: DON-{Date.now()}

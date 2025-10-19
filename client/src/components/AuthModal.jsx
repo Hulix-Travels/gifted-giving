@@ -112,7 +112,7 @@ export default function AuthModal({ open, onClose, initialLoginEmail = '', setLo
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
       <DialogTitle sx={{ m: 0, p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        Welcome to Gifted Giving
+        Welcome to Gifted givings
         <IconButton
           aria-label="close"
           onClick={handleClose}

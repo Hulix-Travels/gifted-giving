@@ -126,12 +126,11 @@ export default function Header() {
             >
               <Box
                 component="img"
-                src="/gifted_logo.png"
-                alt="Gifted Giving"
+                src="/android-chrome-192x192.png"
+                alt="Gifted givings"
                 sx={{
-                  height: { xs: '100px', sm: '120px', md: '140px' },
-                  width: 'auto',
-                  maxWidth: { xs: '180px', sm: '220px', md: '260px' },
+                  height: { xs: '50px', sm: '60px', md: '70px' },
+                  width: { xs: '50px', sm: '60px', md: '70px' },
                   objectFit: 'contain',
                   objectPosition: 'center',
                   transition: 'all 0.3s ease',
@@ -156,7 +155,7 @@ export default function Header() {
                   lineHeight: 1.2
                 }}
               >
-                gifted<Box component="span" sx={{ fontWeight: 900, color: 'var(--dark-green)', fontSize: '1.1em' }}>giving</Box>
+                gifted<Box component="span" sx={{ fontWeight: 900, color: 'var(--dark-green)', fontSize: '1.1em' }}>givings</Box>
               </Typography>
             </Box>
           </Box>

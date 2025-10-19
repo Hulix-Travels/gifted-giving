@@ -110,7 +110,7 @@ app.get('/api/health', (req, res) => {
   const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
   res.json({ 
     status: 'OK', 
-    message: 'Gifted Giving API is running',
+    message: 'Gifted givings API is running',
     database: dbStatus,
     timestamp: new Date().toISOString()
   });

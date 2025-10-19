@@ -145,7 +145,7 @@ class EmailService {
     <html>
     <head>
       <meta charset="utf-8">
-      <title>Welcome to Gifted Giving</title>
+      <title>Welcome to Gifted givings</title>
       <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -158,7 +158,7 @@ class EmailService {
     <body>
       <div class="container">
         <div class="header">
-          <h1>Welcome to Gifted Giving!</h1>
+          <h1>Welcome to Gifted givings!</h1>
         </div>
         <div class="content">
           <h2>Hello {{firstName}}!</h2>
@@ -176,7 +176,7 @@ class EmailService {
           <p>If you have any questions, feel free to reach out to us at giftedhands1256@gmail.com</p>
         </div>
         <div class="footer">
-          <p>© 2025 Gifted Giving. All rights reserved.</p>
+          <p>© 2025 Gifted givings. All rights reserved.</p>
           <p>123 Buganda Road, Kampala, Uganda</p>
         </div>
       </div>
@@ -217,7 +217,7 @@ class EmailService {
           <p>We're excited to keep you informed about how your support is making a real difference in children's lives.</p>
         </div>
         <div class="footer">
-          <p>© 2025 Gifted Giving. All rights reserved.</p>
+          <p>© 2025 Gifted givings. All rights reserved.</p>
           <p>To unsubscribe, reply to this email with "UNSUBSCRIBE" in the subject line.</p>
         </div>
       </div>
@@ -249,7 +249,7 @@ class EmailService {
         </div>
         <div class="content">
           <h2>Hello!</h2>
-          <p>We received a request to reset your password for your Gifted Giving account.</p>
+          <p>We received a request to reset your password for your Gifted givings account.</p>
           <p style="text-align: center; margin: 30px 0;">
             <a href="{{resetUrl}}" class="button">Reset Password</a>
           </p>
@@ -257,7 +257,7 @@ class EmailService {
           <p>If you didn't request this password reset, please ignore this email.</p>
         </div>
         <div class="footer">
-          <p>© 2025 Gifted Giving. All rights reserved.</p>
+          <p>© 2025 Gifted givings. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -300,7 +300,7 @@ class EmailService {
       '      <p>You can view your donation history and track your impact in your dashboard.</p>',
       '    </div>',
       '    <div class="footer">',
-      '      <p>© 2025 Gifted Giving. All rights reserved.</p>',
+      '      <p>© 2025 Gifted givings. All rights reserved.</p>',
       '      <p>123 Buganda Road, Kampala, Uganda</p>',
       '    </div>',
       '  </div>',
@@ -331,7 +331,7 @@ class EmailService {
         </div>
         <div class="content">
           <h2>Hello {{firstName}}!</h2>
-          <p>Thank you for your interest in volunteering with Gifted Giving!</p>
+          <p>Thank you for your interest in volunteering with Gifted givings!</p>
           <p>We have received your application and will review it carefully. Here's what happens next:</p>
           <ol>
             <li>Our team will review your application within 3-5 business days</li>
@@ -347,7 +347,7 @@ class EmailService {
           <p>We appreciate your commitment to making a difference in children's lives!</p>
         </div>
         <div class="footer">
-          <p>© 2025 Gifted Giving. All rights reserved.</p>
+          <p>© 2025 Gifted givings. All rights reserved.</p>
           <p>Questions? Contact us at giftedhands1256@gmail.com</p>
         </div>
       </div>
@@ -380,7 +380,7 @@ class EmailService {
           {{{content}}}
         </div>
         <div class="footer">
-          <p>© 2025 Gifted Giving. All rights reserved.</p>
+          <p>© 2025 Gifted givings. All rights reserved.</p>
           <p>To unsubscribe, reply to this email with "UNSUBSCRIBE" in the subject line.</p>
         </div>
       </div>
@@ -413,7 +413,7 @@ class EmailService {
           {{{content}}}
         </div>
         <div class="footer">
-          <p>© 2025 Gifted Giving. All rights reserved.</p>
+          <p>© 2025 Gifted givings. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -433,14 +433,14 @@ class EmailService {
       '  <div style="max-width: 600px; margin: auto; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 32px;">',
       '    <h2 style="color: #1a7f37;">Verify Your Email Address</h2>',
       '    <p>Hi {{firstName}},</p>',
-      '    <p>Thank you for registering with Gifted Giving! Please verify your email address by clicking the button below:</p>',
+      '    <p>Thank you for registering with Gifted givings! Please verify your email address by clicking the button below:</p>',
       '    <p style="text-align: center; margin: 32px 0;">',
       '      <a href="{{verificationUrl}}" style="background: #1a7f37; color: #fff; padding: 12px 32px; border-radius: 4px; text-decoration: none; font-weight: bold;">Verify Email</a>',
       '    </p>',
       '    <p>If you did not create an account, you can safely ignore this email.</p>',
       '    <p style="color: #888; font-size: 13px;">This link will expire in 24 hours.</p>',
       '    <hr style="margin: 32px 0; border: none; border-top: 1px solid #eee;">',
-      '    <p style="font-size: 13px; color: #888;">&copy; Gifted Giving</p>',
+      '    <p style="font-size: 13px; color: #888;">&copy; Gifted givings</p>',
       '  </div>',
       '</body>',
       '</html>'
@@ -473,7 +473,7 @@ class EmailService {
 
       // Email options
       const mailOptions = {
-        from: `"Gifted Giving" <${process.env.SMTP_USER}>`,
+        from: `"Gifted givings" <${process.env.SMTP_USER}>`,
         to,
         subject,
         html,
@@ -495,7 +495,7 @@ class EmailService {
   async sendWelcomeEmail(user) {
     return this.sendEmail({
       to: user.email,
-      subject: 'Welcome to Gifted Giving!',
+      subject: 'Welcome to Gifted givings!',
       template: 'welcome',
       context: {
         firstName: user.firstName,

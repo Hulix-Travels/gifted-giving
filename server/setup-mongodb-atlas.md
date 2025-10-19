@@ -1,4 +1,4 @@
-# MongoDB Atlas Setup Guide for Gifted Giving App
+# MongoDB Atlas Setup Guide for Gifted givings App
 
 ## Step 1: Create MongoDB Atlas Account
 

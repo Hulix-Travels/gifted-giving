@@ -1,7 +1,7 @@
 {
   "name": "gifted-giving-server",
   "version": "1.0.0",
-  "description": "Backend API for Gifted Giving donation platform",
+  "description": "Backend API for Gifted givings donation platform",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",

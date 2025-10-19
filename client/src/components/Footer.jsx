@@ -134,7 +134,7 @@ export default function Footer() {
           {/* Organization Info */}
           <Grid item xs={12} md={3}>
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 700, color: '#fff', fontSize: '1.2rem' }}>
-              Gifted Giving
+              Gifted givings
             </Typography>
             <Typography variant="body2" sx={{ mb: 3, lineHeight: 1.6, color: 'rgba(255,255,255,0.9)', fontSize: '0.95rem' }}>
               Empowering children through education, health, and opportunity since 2020.
@@ -224,7 +224,7 @@ export default function Footer() {
               <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
                 <LocationOn sx={{ fontSize: 20, color: '#00ff8c', mt: 0.2 }} />
                 <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.95rem', lineHeight: 1.5 }}>
-                  123 Buganda Road, Kampala, Uganda
+                  50 Camden st, Methuen, MA 01844
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -242,7 +242,7 @@ export default function Footer() {
                     }
                   }}
                 >
-                  +1(978)-382-3964
+                  +1(617)-233-8595
                 </Link>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
@@ -261,7 +261,7 @@ export default function Footer() {
                     }
                   }}
                 >
-                  giftedhands1256@gmail.com
+                  forest13hils@gmail.com
                 </Link>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -362,7 +362,7 @@ export default function Footer() {
             fontSize: '0.9rem',
             lineHeight: 1.6
           }}>
-            © 2025 Gifted Giving. All rights reserved. | Registered NGO #12345 |
+            © 2025 Gifted givings. All rights reserved. | Registered NGO #12345 |
             <Link href="#" sx={{ 
               color: 'rgba(255,255,255,0.85)', 
               ml: 1,
