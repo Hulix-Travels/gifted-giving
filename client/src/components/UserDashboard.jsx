@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Card, CardContent, Grid, CircularProgress, Button, Divider, Dialog, DialogTitle, DialogContent, DialogActions, TextField } from '@mui/material';
-import { Favorite, School, People, TrendingUp, Star, Person, Email, Phone, LocationOn, MonetizationOn } from '@mui/icons-material';
+import { Box, Typography, Card, CardContent, Grid, CircularProgress, Button, Divider, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Avatar, Chip, LinearProgress, Paper, IconButton, Tooltip, Container } from '@mui/material';
+import { Favorite, School, People, TrendingUp, Star, Person, Email, Phone, LocationOn, MonetizationOn, Edit, Share, Download, CalendarToday, AttachMoney, Timeline, EmojiEvents, Public, LocalHospital, Restaurant, Construction } from '@mui/icons-material';
 import { authAPI, donationsAPI, volunteersAPI } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 
@@ -129,169 +129,430 @@ export default function UserDashboard() {
   );
 
   return (
-    <Box id="user-dashboard" sx={{ mt: { xs: 10, md: 12 }, py: { xs: 4, md: 6 }, background: '#fafafa' }}>
-      <Box sx={{ mb: 4, textAlign: 'center' }}>
-        <Typography variant="h4" sx={{ fontWeight: 600, color: '#000', mb: 1 }}>
-          {getGreeting()}, {profile.firstName}!
+    <Box id="user-dashboard" sx={{ 
+      mt: { xs: 10, md: 12 }, 
+      py: { xs: 4, md: 6 }, 
+      background: '#f8f9fa',
+      minHeight: '100vh'
+    }}>
+      <Container maxWidth={false} sx={{ maxWidth: '95%', px: 2 }}>
+        {/* Header Section */}
+        <Box sx={{ mb: 6, textAlign: 'center' }}>
+          <Typography variant="h3" sx={{ 
+            fontWeight: 700, 
+            color: '#2c3e50', 
+            mb: 1
+          }}>
+            {getGreeting()}, {profile.firstName}!
+          </Typography>
+          <Typography variant="h6" sx={{ color: '#7f8c8d', mb: 2 }}>
+            Your Impact Dashboard
         </Typography>
-        <Typography variant="body1" sx={{ color: '#666' }}>
-          Here's your impact summary and activity.
-        </Typography>
+          <Chip 
+            icon={<EmojiEvents />} 
+            label={`${donations.length} Donations Made`} 
+            sx={{ 
+              background: '#2c3e50',
+              color: 'white',
+              fontWeight: 'bold'
+            }} 
+          />
       </Box>
-      {/* Impact Summary */}
-      <Grid container spacing={2} sx={{ mb: 4, maxWidth: 800, mx: 'auto' }}>
-        <Grid item xs={12} sm={4}>
+
+        {/* Impact Summary Cards */}
+        <Grid container spacing={3} sx={{ mb: 6 }} justifyContent="center">
+          <Grid item xs={12} sm={6} md={3} lg={2.4}>
           <Card sx={{
-            textAlign: 'center',
-            p: 2,
-            borderRadius: 1,
-            background: '#fff',
-            border: '1px solid #ddd',
-            boxShadow: 'none',
-            height: '100%'
-          }}>
-            <Box sx={{ color: '#999', mb: 1, fontSize: 28 }}><Favorite fontSize="inherit" /></Box>
-            <Typography variant="h5" sx={{ color: '#000', fontWeight: 600, mb: 0.5 }}>{childrenHelped}</Typography>
-            <Typography variant="body2" sx={{ color: '#666', fontSize: '0.875rem' }}>Children Helped</Typography>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={4}>
-          <Card sx={{
-            textAlign: 'center',
-            p: 2,
-            borderRadius: 1,
-            background: '#fff',
-            border: '1px solid #ddd',
-            boxShadow: 'none',
-            height: '100%'
-          }}>
-            <Box sx={{ color: '#999', mb: 1, fontSize: 28 }}><People fontSize="inherit" /></Box>
-            <Typography variant="h5" sx={{ color: '#000', fontWeight: 600, mb: 0.5 }}>{communitiesSupported}</Typography>
-            <Typography variant="body2" sx={{ color: '#666', fontSize: '0.875rem' }}>Communities Supported</Typography>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={4}>
-          <Card sx={{
-            textAlign: 'center',
-            p: 2,
-            borderRadius: 1,
-            background: '#fff',
-            border: '1px solid #ddd',
-            boxShadow: 'none',
-            height: '100%'
-          }}>
-            <Box sx={{ color: '#999', mb: 1, fontSize: 28 }}><School fontSize="inherit" /></Box>
-            <Typography variant="h5" sx={{ color: '#000', fontWeight: 600, mb: 0.5 }}>{programsSupported}</Typography>
-            <Typography variant="body2" sx={{ color: '#666', fontSize: '0.875rem' }}>Programs Supported</Typography>
-          </Card>
-        </Grid>
-      </Grid>
-      {/* Profile Info */}
-      <Card sx={{ maxWidth: 600, mx: 'auto', mb: 4, borderRadius: 1, background: '#fff', border: '1px solid #ddd', boxShadow: 'none' }}>
-        <CardContent sx={{ p: 3 }}>
-          <Typography variant="h6" sx={{ mb: 3, fontWeight: 600, color: '#000' }}>Profile Information</Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
-              <Box display="flex" alignItems="center" gap={1} mb={2}>
-                <Person sx={{ color: '#999', fontSize: 20 }} />
-                <Box>
-                  <Typography variant="body2" sx={{ color: '#666', fontSize: '0.75rem' }}>Name</Typography>
-                  <Typography variant="body1" sx={{ color: '#000', fontWeight: 500 }}>{profile.firstName} {profile.lastName}</Typography>
-                </Box>
+              background: 'white',
+              borderRadius: 3,
+              p: 3,
+              height: '100%',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              border: '1px solid #e9ecef',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
+                transition: 'all 0.3s ease'
+              }
+            }}>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="h2" sx={{ fontWeight: 800, mb: 2, color: '#2c3e50' }}>{childrenHelped}</Typography>
+                <Typography variant="h6" sx={{ color: '#7f8c8d', mb: 1 }}>Children Helped</Typography>
+                <Typography variant="body2" sx={{ color: '#95a5a6' }}>
+                  Through your donations
+                </Typography>
               </Box>
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <Box display="flex" alignItems="center" gap={1} mb={2}>
-                <Email sx={{ color: '#999', fontSize: 20 }} />
-                <Box>
-                  <Typography variant="body2" sx={{ color: '#666', fontSize: '0.75rem' }}>Email</Typography>
-                  <Typography variant="body1" sx={{ color: '#000', fontWeight: 500 }}>{profile.email}</Typography>
-                </Box>
+          </Card>
+        </Grid>
+          
+          <Grid item xs={12} sm={6} md={3} lg={2.4}>
+          <Card sx={{
+              background: 'white',
+              borderRadius: 3,
+              p: 3,
+              height: '100%',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              border: '1px solid #e9ecef',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
+                transition: 'all 0.3s ease'
+              }
+            }}>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="h2" sx={{ fontWeight: 800, mb: 2, color: '#2c3e50' }}>{communitiesSupported}</Typography>
+                <Typography variant="h6" sx={{ color: '#7f8c8d', mb: 1 }}>Communities</Typography>
+                <Typography variant="body2" sx={{ color: '#95a5a6' }}>
+                  Reached and supported
+                </Typography>
               </Box>
+          </Card>
+        </Grid>
+          
+          <Grid item xs={12} sm={6} md={3} lg={2.4}>
+          <Card sx={{
+              background: 'white',
+              borderRadius: 3,
+              p: 3,
+              height: '100%',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              border: '1px solid #e9ecef',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
+                transition: 'all 0.3s ease'
+              }
+            }}>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="h2" sx={{ fontWeight: 800, mb: 2, color: '#2c3e50' }}>{programsSupported}</Typography>
+                <Typography variant="h6" sx={{ color: '#7f8c8d', mb: 1 }}>Programs</Typography>
+                <Typography variant="body2" sx={{ color: '#95a5a6' }}>
+                  You've supported
+                </Typography>
+              </Box>
+            </Card>
             </Grid>
-            {profile.phone && (
-              <Grid item xs={12} sm={6}>
-                <Box display="flex" alignItems="center" gap={1} mb={2}>
-                  <Phone sx={{ color: '#999', fontSize: 20 }} />
-                  <Box>
-                    <Typography variant="body2" sx={{ color: '#666', fontSize: '0.75rem' }}>Phone</Typography>
-                    <Typography variant="body1" sx={{ color: '#000', fontWeight: 500 }}>{profile.phone}</Typography>
-                  </Box>
-                </Box>
-              </Grid>
-            )}
-            {profile.location && (
-              <Grid item xs={12} sm={6}>
-                <Box display="flex" alignItems="center" gap={1} mb={2}>
-                  <LocationOn sx={{ color: '#999', fontSize: 20 }} />
-                  <Box>
-                    <Typography variant="body2" sx={{ color: '#666', fontSize: '0.75rem' }}>Location</Typography>
-                    <Typography variant="body1" sx={{ color: '#000', fontWeight: 500 }}>{profile.location}</Typography>
-                  </Box>
-                </Box>
-              </Grid>
-            )}
+          
+          <Grid item xs={12} sm={6} md={3} lg={2.4}>
+            <Card sx={{
+              background: 'white',
+              borderRadius: 3,
+              p: 3,
+              height: '100%',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              border: '1px solid #e9ecef',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
+                transition: 'all 0.3s ease'
+              }
+            }}>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="h2" sx={{ fontWeight: 800, mb: 2, color: '#2c3e50' }}>${totalDonated}</Typography>
+                <Typography variant="h6" sx={{ color: '#7f8c8d', mb: 1 }}>Total Donated</Typography>
+                <Typography variant="body2" sx={{ color: '#95a5a6' }}>
+                  Making a difference
+                </Typography>
+              </Box>
+            </Card>
           </Grid>
-          <Button variant="outlined" sx={{ mt: 2, borderColor: '#ddd', color: '#666' }} onClick={handleEditOpen}>Edit Profile</Button>
-        </CardContent>
-      </Card>
-      {/* Donation History */}
-      <Card sx={{ maxWidth: 800, mx: 'auto', mb: 4, borderRadius: 1, background: '#fff', border: '1px solid #ddd', boxShadow: 'none' }}>
-        <CardContent sx={{ p: 3 }}>
-          <Typography variant="h6" sx={{ mb: 3, fontWeight: 600, color: '#000' }}>Donation History</Typography>
-          {donations.length === 0 ? (
-            <Typography sx={{ color: '#666', textAlign: 'center', py: 2 }}>No donations yet.</Typography>
-          ) : (
-            <Box>
-              {donations.map((donation, index) => (
-                <Box key={donation._id} sx={{ 
-                  mb: 2, 
-                  p: 2, 
-                  border: '1px solid #f0f0f0', 
-                  borderRadius: 1,
-                  background: '#fafafa'
-                }}>
-                  <Box display="flex" justifyContent="space-between" alignItems="center">
-                    <Box>
-                      <Typography variant="body1" sx={{ color: '#000', fontWeight: 500 }}>
-                        ${donation.amount}
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: '#666' }}>
-                        to {donation.program?.name || 'General'}
-                      </Typography>
-                    </Box>
-                    <Typography variant="body2" sx={{ color: '#999' }}>
-                      {new Date(donation.createdAt).toLocaleDateString()}
+            </Grid>
+        {/* Main Content Grid */}
+        <Grid container spacing={4} justifyContent="center">
+          {/* Profile Information */}
+          <Grid item xs={12} md={4} lg={3}>
+            <Card sx={{
+              background: 'white',
+              borderRadius: 3,
+              p: 4,
+              height: '100%',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              border: '1px solid #e9ecef'
+            }}>
+              <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}>
+                <Typography variant="h5" sx={{ fontWeight: 700, color: '#2c3e50' }}>Profile Information</Typography>
+                <IconButton 
+                  onClick={handleEditOpen}
+                  sx={{ 
+                    color: '#7f8c8d', 
+                    background: '#f8f9fa',
+                    '&:hover': { 
+                      background: '#e9ecef',
+                      color: '#6c757d'
+                    }
+                  }}
+                >
+                  <Edit />
+                </IconButton>
+              </Box>
+              
+              <Box sx={{ mb: 3 }}>
+                <Box display="flex" alignItems="center" gap={2} mb={3}>
+                  <Box sx={{ 
+                    width: 40, 
+                    height: 40, 
+                    borderRadius: '50%', 
+                    background: '#e3f2fd', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center'
+                  }}>
+                    <Person sx={{ fontSize: 20, color: '#1976d2' }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" sx={{ color: '#7f8c8d' }}>Full Name</Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 600, color: '#2c3e50' }}>
+                      {profile.firstName} {profile.lastName}
                     </Typography>
                   </Box>
                 </Box>
-              ))}
-              <Divider sx={{ my: 3 }} />
-              <Box sx={{ textAlign: 'center', p: 2, background: '#f8f8f8', borderRadius: 1 }}>
-                <Typography variant="body1" sx={{ fontWeight: 600, color: '#000' }}>
-                  Total Donated: <strong>${totalDonated}</strong>
+                
+                <Box display="flex" alignItems="center" gap={2} mb={3}>
+                  <Box sx={{ 
+                    width: 40, 
+                    height: 40, 
+                    borderRadius: '50%', 
+                    background: '#f3e5f5', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center'
+                  }}>
+                    <Email sx={{ fontSize: 20, color: '#7b1fa2' }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="body2" sx={{ color: '#7f8c8d' }}>Email</Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 500, color: '#2c3e50' }}>
+                      {profile.email}
+                    </Typography>
+                  </Box>
+                </Box>
+                
+                {profile.phone && (
+                  <Box display="flex" alignItems="center" gap={2} mb={3}>
+                    <Box sx={{ 
+                      width: 40, 
+                      height: 40, 
+                      borderRadius: '50%', 
+                      background: '#e8f5e8', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center'
+                    }}>
+                      <Phone sx={{ fontSize: 20, color: '#388e3c' }} />
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" sx={{ color: '#7f8c8d' }}>Phone</Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 500, color: '#2c3e50' }}>
+                        {profile.phone}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+                
+                {profile.location && (
+                  <Box display="flex" alignItems="center" gap={2}>
+                    <Box sx={{ 
+                      width: 40, 
+                      height: 40, 
+                      borderRadius: '50%', 
+                      background: '#fff3e0', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center'
+                    }}>
+                      <LocationOn sx={{ fontSize: 20, color: '#f57c00' }} />
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" sx={{ color: '#7f8c8d' }}>Location</Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 500, color: '#2c3e50' }}>
+                        {profile.location}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+                </Box>
+            </Card>
+          </Grid>
+          {/* Donation History */}
+          <Grid item xs={12} md={8} lg={9}>
+            <Card sx={{
+              background: 'white',
+              borderRadius: 3,
+              p: 4,
+              height: '100%',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              border: '1px solid #e9ecef'
+            }}>
+              <Box sx={{ mb: 4 }}>
+                <Typography variant="h5" sx={{ 
+                  fontWeight: 700, 
+                  color: '#2c3e50',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}>
+                  <Timeline sx={{ color: '#7f8c8d' }} />
+                  Donation History
                 </Typography>
               </Box>
+              
+              {donations.length === 0 ? (
+                <Box sx={{ 
+                  textAlign: 'center', 
+                  py: 8,
+                  background: '#f8f9fa',
+                  borderRadius: 3,
+                  border: '2px dashed #dee2e6'
+                }}>
+                  <MonetizationOn sx={{ fontSize: 60, color: '#dee2e6', mb: 2 }} />
+                  <Typography variant="h6" sx={{ color: '#7f8c8d', mb: 1 }}>
+                    No donations yet
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: '#95a5a6' }}>
+                    Start making a difference today!
+                  </Typography>
+                </Box>
+              ) : (
+                <Box>
+                  {donations.map((donation, index) => (
+                    <Paper key={donation._id} sx={{ 
+                      mb: 3, 
+                      p: 3, 
+                      borderRadius: 3,
+                      background: '#f8f9fa',
+                      border: '1px solid #e9ecef',
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        border: '1px solid #00ff8c'
+                      }
+                    }}>
+                      <Box display="flex" justifyContent="space-between" alignItems="center">
+                        <Box display="flex" alignItems="center" gap={3}>
+                          <Box sx={{ 
+                            width: 50, 
+                            height: 50, 
+                            borderRadius: '50%', 
+                            background: '#e8f5e8', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center'
+                          }}>
+                            <AttachMoney sx={{ fontSize: 24, color: '#388e3c' }} />
+                          </Box>
+                          <Box>
+                            <Typography variant="h6" sx={{ 
+                              color: '#2c3e50', 
+                              fontWeight: 700,
+                              mb: 0.5
+                            }}>
+                              ${donation.amount}
+                            </Typography>
+                            <Typography variant="body1" sx={{ 
+                              color: '#7f8c8d',
+                              fontWeight: 500
+                            }}>
+                              to {donation.program?.name || 'General Fund'}
+                            </Typography>
+                            <Box display="flex" alignItems="center" gap={1} mt={1}>
+                              <CalendarToday sx={{ fontSize: 16, color: '#95a5a6' }} />
+                              <Typography variant="body2" sx={{ color: '#95a5a6' }}>
+                                {new Date(donation.createdAt).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric'
+                                })}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </Box>
+                        <Chip 
+                          label={donation.paymentStatus || 'Completed'} 
+                          sx={{ 
+                            background: '#e8f5e8',
+                            color: '#388e3c',
+                            fontWeight: 'bold'
+                          }}
+                        />
+                      </Box>
+                    </Paper>
+                  ))}
+                  
+                  <Paper sx={{ 
+                    mt: 4, 
+                    p: 4, 
+                    background: '#f8f9fa',
+                    borderRadius: 3,
+                    textAlign: 'center',
+                    border: '1px solid #e9ecef'
+                  }}>
+                    <Typography variant="h4" sx={{ 
+                      fontWeight: 800, 
+                      color: '#2c3e50',
+                      mb: 1
+                    }}>
+                      ${totalDonated}
+                    </Typography>
+                    <Typography variant="h6" sx={{ 
+                      color: '#7f8c8d',
+                      mb: 1
+                    }}>
+                      Total Impact Created
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: '#95a5a6'
+                    }}>
+                      Thank you for making a difference in the lives of children worldwide
+                    </Typography>
+                  </Paper>
             </Box>
           )}
-        </CardContent>
       </Card>
+          </Grid>
+        </Grid>
       {/* Call to Action */}
-      <Box sx={{ textAlign: 'center', mt: 4 }}>
-        <Button 
-          variant="contained" 
-          onClick={handleDonateAgain} 
-          sx={{ 
-            backgroundColor: '#000', 
-            color: '#fff',
-            '&:hover': { backgroundColor: '#333' },
-            px: 4,
-            py: 1.5
-          }}
-        >
+        <Box sx={{ textAlign: 'center', mt: 6 }}>
+          <Paper sx={{
+            background: 'white',
+            p: 6,
+            borderRadius: 3,
+            maxWidth: 1000,
+            mx: 'auto',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            border: '1px solid #e9ecef'
+          }}>
+            <Typography variant="h4" sx={{ fontWeight: 700, mb: 2, color: '#2c3e50' }}>
+              Continue Making a Difference
+            </Typography>
+            <Typography variant="h6" sx={{ color: '#7f8c8d', mb: 4 }}>
+              Your generosity has already helped {childrenHelped} children. Let's help even more!
+            </Typography>
+         <Button 
+           variant="contained" 
+           onClick={handleDonateAgain} 
+           size="large"
+           sx={{ 
+             background: '#2c3e50',
+             color: 'white',
+             px: 6,
+             py: 2,
+             fontSize: '1.2rem',
+             fontWeight: 'bold',
+             borderRadius: 3,
+             '&:hover': { 
+               background: '#34495e',
+               transform: 'translateY(-2px)',
+               boxShadow: '0 8px 25px rgba(44,62,80,0.3)'
+             },
+             transition: 'all 0.3s ease'
+           }}
+         >
           Donate Again
         </Button>
+          </Paper>
       </Box>
+      </Container>
       {/* Edit Profile Dialog */}
       <Dialog open={editOpen} onClose={handleEditClose} maxWidth="xs" fullWidth>
         <DialogTitle>Edit Profile</DialogTitle>
