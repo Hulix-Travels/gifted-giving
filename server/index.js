@@ -40,7 +40,7 @@ const envOriginPatterns = (process.env.ALLOWED_ORIGIN_PATTERNS || '')
   .filter(Boolean);
 const clientUrl = process.env.CLIENT_URL;
 
-app.use(cors({
+const corsOptions = {
   origin: function(origin, callback) {
     // Allow requests with no origin (like mobile apps, curl, etc.)
     if (!origin) return callback(null, true);
@@ -60,17 +60,19 @@ app.use(cors({
 
     if (isListed || matchesPattern) {
       return callback(null, true);
-    } else {
-      console.log('CORS blocked origin:', origin);
-      return callback(new Error('Not allowed by CORS'));
     }
+    console.log('CORS blocked origin:', origin);
+    // Do not throw; return false to avoid 500s on disallowed origins
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']
-}));
-// Explicitly handle preflight requests for all routes
-app.options('*', cors());
+};
+
+app.use(cors(corsOptions));
+// Explicitly handle preflight requests for all routes with same options
+app.options('*', cors(corsOptions));
 
 // Rate limiting
 const limiter = rateLimit({
