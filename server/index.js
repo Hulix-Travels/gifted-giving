@@ -29,6 +29,15 @@ const envAllowedOrigins = (process.env.ALLOWED_ORIGINS || '')
   .split(',')
   .map(o => o.trim())
   .filter(Boolean);
+// Optional regex patterns for origins, comma-separated (e.g., ^https://gifted-givings-[^.]+\.vercel\.app$)
+const envOriginPatterns = (process.env.ALLOWED_ORIGIN_PATTERNS || '')
+  .split(',')
+  .map(p => p.trim())
+  .filter(Boolean)
+  .map(p => {
+    try { return new RegExp(p); } catch { return null; }
+  })
+  .filter(Boolean);
 const clientUrl = process.env.CLIENT_URL;
 
 app.use(cors({
@@ -47,7 +56,10 @@ app.use(cors({
       .concat(envAllowedOrigins)
       .concat(clientUrl ? [clientUrl] : []);
 
-    if (allowedOrigins.includes(origin)) {
+    const isListed = allowedOrigins.includes(origin);
+    const matchesPattern = envOriginPatterns.some(re => re.test(origin));
+
+    if (isListed || matchesPattern) {
       return callback(null, true);
     } else {
       console.log('CORS blocked origin:', origin);
