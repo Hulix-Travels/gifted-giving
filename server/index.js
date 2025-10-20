@@ -24,6 +24,13 @@ const newsletterRoutes = require('./routes/newsletter');
 
 // Security middleware
 app.use(helmet());
+// Build allowed origins list from env to support multiple frontends
+const envAllowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+const clientUrl = process.env.CLIENT_URL;
+
 app.use(cors({
   origin: function(origin, callback) {
     // Allow requests with no origin (like mobile apps, curl, etc.)
@@ -36,14 +43,10 @@ app.use(cors({
       'https://www.giftedgivings.com',
       'https://giftedgivings.com',
       'https://gifted-givings-9l6iaf34u-julius-kazibwe-s-projects.vercel.app'
-    ];
-    
-    // Also check if the origin matches the CLIENT_URL environment variable
-    const clientUrl = process.env.CLIENT_URL;
-    if (clientUrl && origin === clientUrl) {
-      return callback(null, true);
-    }
-    
+    ]
+      .concat(envAllowedOrigins)
+      .concat(clientUrl ? [clientUrl] : []);
+
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     } else {
@@ -105,11 +108,18 @@ app.use('/api/feedback', feedbackRoutes);
 app.use('/api/success-stories', successStoriesRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 
-// Serve uploads directory statically
+// Serve uploads directory statically using an absolute path for reliability in production
+const path = require('path');
+const uploadsAbsolutePath = path.join(__dirname, 'uploads');
 app.use('/uploads', (req, res, next) => {
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Access-Control-Allow-Origin', '*');
   next();
-}, express.static('uploads'));
+}, express.static(uploadsAbsolutePath, {
+  fallthrough: true,
+  etag: true,
+  maxAge: '30d'
+}));
 
 // Upload route
 app.use('/api/upload', require('./routes/upload'));
