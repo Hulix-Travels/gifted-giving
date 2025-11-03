@@ -252,7 +252,9 @@ router.post('/create-payment-intent', [
 // @route   POST /api/stripe/webhook
 // @desc    Handle Stripe webhook events
 // @access  Public
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+// Note: This route must NOT have body parsing middleware applied before it
+// The raw body is already handled in index.js before this route is reached
+router.post('/webhook', async (req, res) => {
   const sig = req.headers['stripe-signature'];
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   let event;
@@ -407,7 +409,8 @@ router.get('/webhook-test', (req, res) => {
 // @route   POST /api/stripe/webhook-test
 // @desc    Test webhook processing
 // @access  Public
-router.post('/webhook-test', express.raw({ type: 'application/json' }), (req, res) => {
+// Note: Raw body parsing is handled in index.js for webhook routes
+router.post('/webhook-test', (req, res) => {
   console.log('🧪 Webhook test POST received');
   console.log('Headers:', req.headers);
   console.log('Body length:', req.body.length);

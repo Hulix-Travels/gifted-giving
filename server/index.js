@@ -84,8 +84,30 @@ app.use('/api/', limiter);
 // Body parsing middleware
 app.use(compression());
 app.use(morgan('combined'));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Stripe webhook needs raw body for signature verification
+// So we must exclude it from JSON parsing
+app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
+app.use('/api/stripe/webhook-test', express.raw({ type: 'application/json' }));
+
+// Apply JSON parsing to all other routes (except webhook routes)
+app.use((req, res, next) => {
+  // Skip JSON parsing for Stripe webhook routes (they need raw body)
+  const path = req.path || req.originalUrl || '';
+  if (path.includes('/stripe/webhook')) {
+    return next();
+  }
+  express.json({ limit: '10mb' })(req, res, next);
+});
+
+app.use((req, res, next) => {
+  // Skip URL encoded parsing for Stripe webhook routes
+  const path = req.path || req.originalUrl || '';
+  if (path.includes('/stripe/webhook')) {
+    return next();
+  }
+  express.urlencoded({ extended: true, limit: '10mb' })(req, res, next);
+});
 
 // MongoDB connection with better error handling
 const connectDB = async () => {

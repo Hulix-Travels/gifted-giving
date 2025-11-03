@@ -173,11 +173,11 @@ class EmailService {
           <p style="text-align: center; margin: 30px 0;">
             <a href="{{dashboardUrl}}" class="button">Visit Your Dashboard</a>
           </p>
-          <p>If you have any questions, feel free to reach out to us at giftedhands1256@gmail.com</p>
+          <p>If you have any questions, feel free to reach out to us at forest13hils@gmail.com</p>
         </div>
         <div class="footer">
           <p>© 2025 Gifted givings. All rights reserved.</p>
-          <p>123 Buganda Road, Kampala, Uganda</p>
+          <p>50 Camden st, Methuen, MA 01844</p>
         </div>
       </div>
     </body>

@@ -17,7 +17,7 @@ const donationSchema = new mongoose.Schema({
   amount: {
     type: Number,
     required: [true, 'Donation amount is required'],
-    min: [1, 'Donation amount must be greater than 0']
+    min: [0.5, 'Donation amount must be at least $0.50']
   },
   currency: {
     type: String,
