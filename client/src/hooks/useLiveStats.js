@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { programsAPI } from '../services/api';
-import { volunteersAPI } from '../services/api';
+import { programsAPI, volunteersAPI } from '../services/api';
 
 export default function useLiveStats() {
   const [stats, setStats] = useState(null);

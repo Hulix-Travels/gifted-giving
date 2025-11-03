@@ -4,6 +4,16 @@ class StripeService {
   // Create a payment intent for a donation
   static async createPaymentIntent(amount, currency = 'usd', metadata = {}) {
     try {
+      // Validate Stripe key is configured
+      if (!process.env.STRIPE_SECRET_KEY) {
+        throw new Error('Stripe secret key is not configured. Please set STRIPE_SECRET_KEY environment variable.');
+      }
+
+      // Validate amount
+      if (!amount || amount < 0.5) {
+        throw new Error('Amount must be at least $0.50');
+      }
+
       console.log(`Creating payment intent for ${amount} ${currency}`);
       console.log('Stripe secret key available:', !!process.env.STRIPE_SECRET_KEY);
       console.log('Metadata:', metadata);
@@ -100,19 +110,65 @@ class StripeService {
     }
   }
 
+  // Helper function to convert frequency to Stripe interval
+  static convertFrequencyToStripeInterval(frequency) {
+    const frequencyMap = {
+      'daily': 'day',
+      'weekly': 'week',
+      'monthly': 'month',
+      'quarterly': 'month', // Stripe doesn't support quarterly, we'll use 3 months interval count
+      'yearly': 'year'
+    };
+    return frequencyMap[frequency] || 'month';
+  }
+
+  // Helper function to get interval count for quarterly
+  static getIntervalCount(frequency) {
+    if (frequency === 'quarterly') {
+      return 3; // 3 months
+    }
+    return 1; // Default interval count
+  }
+
+  // Helper function to calculate next payment date
+  static calculateNextPaymentDate(frequency) {
+    const now = new Date();
+    switch (frequency) {
+      case 'daily':
+        return new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      case 'weekly':
+        return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      case 'monthly':
+        return new Date(now.setMonth(now.getMonth() + 1));
+      case 'quarterly':
+        return new Date(now.setMonth(now.getMonth() + 3));
+      case 'yearly':
+        return new Date(now.setFullYear(now.getFullYear() + 1));
+      default:
+        return new Date(now.setMonth(now.getMonth() + 1));
+    }
+  }
+
   // Create a price for recurring donations
-  static async createPrice(amount, currency = 'usd', interval = 'month', metadata = {}) {
+  static async createPrice(amount, currency = 'usd', frequency = 'monthly', metadata = {}) {
     try {
+      const interval = this.convertFrequencyToStripeInterval(frequency);
+      const intervalCount = this.getIntervalCount(frequency);
+      
       const price = await stripe.prices.create({
         unit_amount: Math.round(amount * 100),
         currency: currency.toLowerCase(),
-        recurring: { interval },
+        recurring: { 
+          interval,
+          interval_count: intervalCount
+        },
         product_data: {
-          name: 'Gifted givings Donation',
-          description: 'Recurring donation to support children in need',
+          name: `Gifted givings Donation (${frequency})`,
           metadata: {
             ...metadata,
-            type: 'donation_product'
+            type: 'donation_product',
+            frequency: frequency,
+            description: `Recurring donation to support children in need (${frequency})`
           }
         },
       });
@@ -120,7 +176,13 @@ class StripeService {
       return price;
     } catch (error) {
       console.error('Stripe price creation error:', error);
-      throw new Error('Failed to create price');
+      console.error('Error details:', {
+        message: error.message,
+        type: error.type,
+        code: error.code,
+        param: error.param
+      });
+      throw new Error(`Failed to create price: ${error.message}`);
     }
   }
 
@@ -141,12 +203,32 @@ class StripeService {
           return await this.handlePaymentFailure(event.data.object);
         
         case 'invoice.payment_succeeded':
-          console.log('🔄 Processing subscription payment...');
-          return await this.handleSubscriptionPayment(event.data.object);
+          console.log('🔄 Processing invoice payment...');
+          const invoice = event.data.object;
+          // Check if this is a subscription invoice or one-time payment
+          if (invoice.subscription) {
+            return await this.handleSubscriptionPayment(invoice);
+          } else {
+            // This is a one-time invoice, handle as regular payment
+            console.log('💰 Processing one-time invoice payment...');
+            if (invoice.payment_intent) {
+              const paymentIntent = await stripe.paymentIntents.retrieve(invoice.payment_intent);
+              return await this.handlePaymentSuccess(paymentIntent);
+            }
+          }
+          break;
         
         case 'invoice.payment_failed':
           console.log('❌ Processing subscription failure...');
           return await this.handleSubscriptionFailure(event.data.object);
+        
+        case 'customer.subscription.deleted':
+          console.log('🗑️ Processing subscription cancellation...');
+          return await this.handleSubscriptionCancellation(event.data.object);
+        
+        case 'customer.subscription.updated':
+          console.log('🔄 Processing subscription update...');
+          return await this.handleSubscriptionUpdate(event.data.object);
         
         default:
           console.log(`⚠️ Unhandled event type: ${event.type}`);
@@ -313,11 +395,156 @@ class StripeService {
   // Handle subscription payment
   static async handleSubscriptionPayment(invoice) {
     try {
-      // Handle recurring donation payment
-      console.log(`Subscription payment received: ${invoice.subscription}`);
-      return { status: 'success', subscription: invoice.subscription };
+      console.log(`🔄 Processing subscription payment: ${invoice.id}`);
+      console.log(`Subscription ID: ${invoice.subscription}`);
+      console.log(`Amount: ${invoice.amount_paid / 100} ${invoice.currency}`);
+      
+      const Donation = require('../models/Donation');
+      const Program = require('../models/Program');
+      const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+      
+      // Retrieve the subscription to get metadata
+      const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
+      console.log('Subscription metadata:', subscription.metadata);
+      
+      // Find the original donation record
+      const originalDonationId = subscription.metadata.donationId;
+      if (!originalDonationId) {
+        console.error('⚠️ No original donation ID found in subscription metadata');
+        return { status: 'error', message: 'No original donation ID found' };
+      }
+      
+      const originalDonation = await Donation.findById(originalDonationId);
+      if (!originalDonation) {
+        console.error(`⚠️ Original donation not found: ${originalDonationId}`);
+        return { status: 'error', message: 'Original donation not found' };
+      }
+      
+      console.log(`✅ Found original donation: ${originalDonation._id}`);
+      
+      // Check if this is the first payment (original donation status is pending)
+      const isFirstPayment = originalDonation.paymentStatus === 'pending';
+      
+      if (isFirstPayment) {
+        // Update the original donation record as completed
+        originalDonation.paymentStatus = 'completed';
+        originalDonation.transactionId = invoice.payment_intent;
+        originalDonation.stripePaymentIntentId = invoice.payment_intent;
+        originalDonation.recurring.totalPayments = 1;
+        originalDonation.recurring.nextPaymentDate = this.calculateNextPaymentDate(originalDonation.recurring.frequency);
+        await originalDonation.save();
+        console.log(`✅ Updated original donation to completed: ${originalDonation._id}`);
+        
+        // Update program current amount and impact metrics for first payment
+        const program = await Program.findById(originalDonation.program);
+        if (program && program.impactPerDollar) {
+          const impact = program.impactPerDollar;
+          const amount = originalDonation.amount;
+          const children = Math.floor(amount * (impact.children || 0));
+          const communities = Math.floor(amount * (impact.communities || 0));
+          const schools = Math.floor(amount * (impact.schools || 0));
+          const meals = Math.floor(amount * (impact.meals || 0));
+          const checkups = Math.floor(amount * (impact.checkups || 0));
+          
+          await Program.findByIdAndUpdate(originalDonation.program, {
+            $inc: { 
+              currentAmount: amount,
+              'impactMetrics.childrenHelped': children,
+              'impactMetrics.communitiesReached': communities,
+              'impactMetrics.schoolsBuilt': schools,
+              'impactMetrics.mealsProvided': meals,
+              'impactMetrics.medicalCheckups': checkups
+            }
+          });
+          
+          console.log(`✅ Updated program metrics for first payment`);
+        } else {
+          await Program.findByIdAndUpdate(originalDonation.program, {
+            $inc: { currentAmount: originalDonation.amount }
+          });
+        }
+        
+        return { 
+          status: 'success', 
+          subscription: invoice.subscription,
+          donation: originalDonation,
+          isFirstPayment: true
+        };
+      }
+      
+      // This is a subsequent recurring payment - create a new donation record
+      const newDonationData = {
+        program: originalDonation.program,
+        amount: invoice.amount_paid / 100, // Convert from cents
+        currency: invoice.currency.toUpperCase(),
+        paymentMethod: 'stripe',
+        anonymous: originalDonation.anonymous,
+        message: originalDonation.message,
+        recurring: {
+          isRecurring: true,
+          frequency: originalDonation.recurring.frequency,
+          stripeSubscriptionId: subscription.id,
+          originalDonationId: originalDonation._id,
+          nextPaymentDate: this.calculateNextPaymentDate(originalDonation.recurring.frequency),
+          totalPayments: (originalDonation.recurring.totalPayments || 0) + 1
+        },
+        paymentStatus: 'completed',
+        transactionId: invoice.payment_intent,
+        stripePaymentIntentId: invoice.payment_intent
+      };
+      
+      // Add donor if original donation had one
+      if (originalDonation.donor) {
+        newDonationData.donor = originalDonation.donor;
+      }
+      
+      const newDonation = new Donation(newDonationData);
+      await newDonation.save();
+      console.log(`✅ Created new donation record for recurring payment: ${newDonation._id}`);
+      
+      // Update the original donation's total payments count
+      originalDonation.recurring.totalPayments = (originalDonation.recurring.totalPayments || 0) + 1;
+      originalDonation.recurring.nextPaymentDate = this.calculateNextPaymentDate(originalDonation.recurring.frequency);
+      await originalDonation.save();
+      
+      // Update program current amount and impact metrics
+      const program = await Program.findById(originalDonation.program);
+      if (program && program.impactPerDollar) {
+        const impact = program.impactPerDollar;
+        const amount = newDonation.amount;
+        const children = Math.floor(amount * (impact.children || 0));
+        const communities = Math.floor(amount * (impact.communities || 0));
+        const schools = Math.floor(amount * (impact.schools || 0));
+        const meals = Math.floor(amount * (impact.meals || 0));
+        const checkups = Math.floor(amount * (impact.checkups || 0));
+        
+        await Program.findByIdAndUpdate(originalDonation.program, {
+          $inc: { 
+            currentAmount: amount,
+            'impactMetrics.childrenHelped': children,
+            'impactMetrics.communitiesReached': communities,
+            'impactMetrics.schoolsBuilt': schools,
+            'impactMetrics.mealsProvided': meals,
+            'impactMetrics.medicalCheckups': checkups
+          }
+        });
+        
+        console.log(`✅ Updated program metrics: ${children} children, ${communities} communities, etc.`);
+      } else {
+        await Program.findByIdAndUpdate(originalDonation.program, {
+          $inc: { currentAmount: newDonation.amount }
+        });
+      }
+      
+      return { 
+        status: 'success', 
+        subscription: invoice.subscription,
+        donation: newDonation,
+        originalDonation: originalDonation
+      };
     } catch (error) {
-      console.error('Subscription payment handling error:', error);
+      console.error('❌ Subscription payment handling error:', error);
+      console.error('Error stack:', error.stack);
       throw error;
     }
   }
@@ -325,10 +552,176 @@ class StripeService {
   // Handle subscription failure
   static async handleSubscriptionFailure(invoice) {
     try {
-      console.log(`Subscription payment failed: ${invoice.subscription}`);
+      console.log(`❌ Subscription payment failed: ${invoice.subscription}`);
+      const Donation = require('../models/Donation');
+      const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+      
+      // Retrieve subscription to get metadata
+      const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
+      const originalDonationId = subscription.metadata.donationId;
+      
+      if (originalDonationId) {
+        const donation = await Donation.findById(originalDonationId);
+        if (donation) {
+          console.log(`⚠️ Marking subscription as failed for donation: ${donation._id}`);
+          // Optionally mark the original donation or create a failure record
+        }
+      }
+      
       return { status: 'failed', subscription: invoice.subscription };
     } catch (error) {
       console.error('Subscription failure handling error:', error);
+      throw error;
+    }
+  }
+
+  // Get subscription details
+  static async getSubscription(subscriptionId) {
+    try {
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+        expand: ['customer', 'items.data.price.product']
+      });
+      return subscription;
+    } catch (error) {
+      console.error('Error retrieving subscription:', error);
+      throw new Error('Failed to retrieve subscription');
+    }
+  }
+
+  // Cancel a subscription
+  static async cancelSubscription(subscriptionId, cancelImmediately = false) {
+    try {
+      const subscription = await stripe.subscriptions.update(subscriptionId, {
+        cancel_at_period_end: !cancelImmediately
+      });
+      
+      // If canceling immediately, also cancel it
+      if (cancelImmediately) {
+        await stripe.subscriptions.cancel(subscriptionId);
+      }
+      
+      return subscription;
+    } catch (error) {
+      console.error('Error canceling subscription:', error);
+      throw new Error('Failed to cancel subscription');
+    }
+  }
+
+  // Modify subscription (change amount or frequency)
+  static async modifySubscription(subscriptionId, newAmount, newFrequency) {
+    try {
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      
+      // Get current subscription item
+      const subscriptionItemId = subscription.items.data[0].id;
+      
+      // Create new price with updated amount and frequency
+      const interval = this.convertFrequencyToStripeInterval(newFrequency);
+      const intervalCount = this.getIntervalCount(newFrequency);
+      
+      const newPrice = await stripe.prices.create({
+        unit_amount: Math.round(newAmount * 100),
+        currency: subscription.currency,
+        recurring: {
+          interval,
+          interval_count: intervalCount
+        },
+        product_data: {
+          name: `Gifted givings Donation (${newFrequency})`,
+          metadata: {
+            description: `Recurring donation (${newFrequency})`,
+            type: 'donation_product'
+          }
+        }
+      });
+      
+      // Update subscription with new price
+      const updatedSubscription = await stripe.subscriptions.update(subscriptionId, {
+        items: [{
+          id: subscriptionItemId,
+          price: newPrice.id
+        }],
+        proration_behavior: 'create_prorations' // Prorate the change
+      });
+      
+      // Update metadata
+      await stripe.subscriptions.update(subscriptionId, {
+        metadata: {
+          ...subscription.metadata,
+          frequency: newFrequency,
+          amount: newAmount.toString()
+        }
+      });
+      
+      return updatedSubscription;
+    } catch (error) {
+      console.error('Error modifying subscription:', error);
+      throw new Error('Failed to modify subscription');
+    }
+  }
+
+  // Reactivate a canceled subscription
+  static async reactivateSubscription(subscriptionId) {
+    try {
+      const subscription = await stripe.subscriptions.update(subscriptionId, {
+        cancel_at_period_end: false
+      });
+      
+      return subscription;
+    } catch (error) {
+      console.error('Error reactivating subscription:', error);
+      throw new Error('Failed to reactivate subscription');
+    }
+  }
+
+  // Handle subscription cancellation webhook
+  static async handleSubscriptionCancellation(subscription) {
+    try {
+      console.log(`🗑️ Subscription canceled: ${subscription.id}`);
+      const Donation = require('../models/Donation');
+      
+      const originalDonationId = subscription.metadata.donationId;
+      if (!originalDonationId) {
+        console.error('⚠️ No original donation ID found in subscription metadata');
+        return { status: 'error', message: 'No original donation ID found' };
+      }
+      
+      const donation = await Donation.findById(originalDonationId);
+      if (donation) {
+        donation.recurring.endDate = new Date(subscription.canceled_at * 1000);
+        await donation.save();
+        console.log(`✅ Updated donation with cancellation date: ${donation._id}`);
+      }
+      
+      return { status: 'success', subscription: subscription.id };
+    } catch (error) {
+      console.error('Subscription cancellation handling error:', error);
+      throw error;
+    }
+  }
+
+  // Handle subscription update webhook
+  static async handleSubscriptionUpdate(subscription) {
+    try {
+      console.log(`🔄 Subscription updated: ${subscription.id}`);
+      const Donation = require('../models/Donation');
+      
+      const originalDonationId = subscription.metadata.donationId;
+      if (originalDonationId) {
+        const donation = await Donation.findById(originalDonationId);
+        if (donation) {
+          // Update donation if subscription was reactivated
+          if (!subscription.cancel_at_period_end && donation.recurring.endDate) {
+            donation.recurring.endDate = null;
+            await donation.save();
+            console.log(`✅ Subscription reactivated for donation: ${donation._id}`);
+          }
+        }
+      }
+      
+      return { status: 'success', subscription: subscription.id };
+    } catch (error) {
+      console.error('Subscription update handling error:', error);
       throw error;
     }
   }

@@ -53,9 +53,9 @@ export default function Testimonials() {
         }
       }}
     >
-      <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 2 }}>
+      <Container maxWidth={false} sx={{ position: 'relative', zIndex: 2, px: { xs: 2, sm: 3, md: 4 } }}>
         {/* Section Title */}
-        <Box sx={{ textAlign: 'center', mb: 8 }}>
+        <Box sx={{ textAlign: 'center', mb: 8, maxWidth: 1200, mx: 'auto' }}>
           <Typography 
             variant="h2" 
             sx={{ 
@@ -85,7 +85,7 @@ export default function Testimonials() {
             <CircularProgress />
           </Box>
         ) : stories.length === 0 ? (
-          <Box sx={{ textAlign: 'center', py: 6 }}>
+          <Box sx={{ textAlign: 'center', py: 6, maxWidth: 1200, mx: 'auto' }}>
             <Typography variant="h6" sx={{ color: 'var(--gray)', mb: 2 }}>
               No stories yet.
             </Typography>
@@ -101,7 +101,9 @@ export default function Testimonials() {
                 overflowX: 'auto',
                 gap: 4,
                 py: 2,
+                px: { xs: 2, sm: 3, md: 4 },
                 scrollSnapType: 'x mandatory',
+                width: '100%',
                 '&::-webkit-scrollbar': {
                   height: 8,
                 },
@@ -217,7 +219,10 @@ export default function Testimonials() {
                 p: 4,
                 background: 'linear-gradient(135deg, var(--light-green), var(--white))',
                 borderRadius: 4,
-                border: '1px solid rgba(0,255,140,0.1)'
+                border: '1px solid rgba(0,255,140,0.1)',
+                maxWidth: 1200,
+                mx: 'auto',
+                mt: 4
               }}
             >
               <Typography 

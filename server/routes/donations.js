@@ -43,7 +43,7 @@ router.post('/', [
   body('anonymous').optional().isBoolean(),
   body('message').optional().isLength({ max: 500 }),
   body('recurring.isRecurring').optional().isBoolean(),
-  body('recurring.frequency').optional().isIn(['monthly', 'quarterly', 'yearly'])
+  body('recurring.frequency').optional().isIn(['daily', 'weekly', 'monthly', 'quarterly', 'yearly'])
 ], async (req, res) => {
   try {
     const errors = validationResult(req);

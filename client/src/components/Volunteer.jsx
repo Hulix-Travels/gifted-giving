@@ -496,7 +496,7 @@ export default function Volunteer() {
                         <Box>
                           <Typography variant="body1" sx={{ fontWeight: 600 }}>🇰🇪 Nairobi, Kenya</Typography>
                           <Typography variant="caption" color="text.secondary">
-                            Our main office and community programs
+                            Education and healthcare initiatives
                           </Typography>
                         </Box>
                       </MenuItem>
@@ -504,7 +504,7 @@ export default function Volunteer() {
                         <Box>
                           <Typography variant="body1" sx={{ fontWeight: 600 }}>🇺🇬 Kampala, Uganda</Typography>
                           <Typography variant="caption" color="text.secondary">
-                            Education and healthcare initiatives
+                            Our main office and community programs
                           </Typography>
                         </Box>
                       </MenuItem>

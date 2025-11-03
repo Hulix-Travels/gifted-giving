@@ -24,7 +24,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  FormHelperText
+  FormHelperText,
+  Paper
 } from '@mui/material';
 import {
   CreditCard,
@@ -39,17 +40,74 @@ import { stripeAPI } from '../services/api';
 // Load Stripe with your publishable key
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_51RhMg2QR8d2LcBasSx0AiTAeNQFbOmavHh8q9LvE9OyAd8Y2MawJ0LMgWq6dppC3k1nEpLE50AznemCnWLC7MlLZ00Zumt7zZj');
 
+// Card brand information with original colors
+const CARD_BRANDS = {
+  visa: { 
+    name: 'Visa', 
+    color: '#1434CB',
+    bgGradient: 'linear-gradient(135deg, #1434CB 0%, #1A5FCC 100%)',
+    textColor: '#FFFFFF'
+  },
+  mastercard: { 
+    name: 'Mastercard', 
+    color: '#EB001B',
+    bgGradient: 'linear-gradient(135deg, #EB001B 0%, #F79E1B 100%)',
+    textColor: '#FFFFFF'
+  },
+  amex: { 
+    name: 'American Express', 
+    color: '#006FCF',
+    bgGradient: 'linear-gradient(135deg, #006FCF 0%, #009CDE 100%)',
+    textColor: '#FFFFFF'
+  },
+  discover: { 
+    name: 'Discover', 
+    color: '#FF6000',
+    bgGradient: 'linear-gradient(135deg, #FF6000 0%, #FF7900 100%)',
+    textColor: '#FFFFFF'
+  },
+  diners: { 
+    name: 'Diners Club', 
+    color: '#0079BE',
+    bgGradient: 'linear-gradient(135deg, #0079BE 0%, #0085CC 100%)',
+    textColor: '#FFFFFF'
+  },
+  jcb: { 
+    name: 'JCB', 
+    color: '#0E4C96',
+    bgGradient: 'linear-gradient(135deg, #0E4C96 0%, #1055A6 100%)',
+    textColor: '#FFFFFF'
+  },
+  unionpay: { 
+    name: 'UnionPay', 
+    color: '#E21836',
+    bgGradient: 'linear-gradient(135deg, #E21836 0%, #F52D4A 100%)',
+    textColor: '#FFFFFF'
+  },
+  unknown: { 
+    name: 'Card', 
+    color: '#666',
+    bgGradient: 'linear-gradient(135deg, #666 0%, #777 100%)',
+    textColor: '#FFFFFF'
+  }
+};
+
+// Supported card types to display
+const SUPPORTED_CARDS = ['visa', 'mastercard', 'amex', 'discover', 'diners', 'jcb', 'unionpay'];
+
 const CARD_ELEMENT_OPTIONS = {
   style: {
     base: {
       fontSize: '16px',
-      color: '#424770',
+      color: '#333',
+      fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
       '::placeholder': {
         color: '#aab7c4',
       },
     },
     invalid: {
-      color: '#9e2146',
+      color: '#d32f2f',
+      iconColor: '#d32f2f',
     },
   },
 };
@@ -65,6 +123,12 @@ function CheckoutForm({ amount, currency = 'usd', onSuccess, onError, donationDa
     cardNumber: false,
     cardExpiry: false,
     cardCvc: false
+  });
+  const [detectedCardBrand, setDetectedCardBrand] = useState(null);
+  const [cardErrors, setCardErrors] = useState({
+    cardNumber: null,
+    cardExpiry: null,
+    cardCvc: null
   });
   const [donorInfo, setDonorInfo] = useState({
     name: '',
@@ -89,6 +153,123 @@ function CheckoutForm({ amount, currency = 'usd', onSuccess, onError, donationDa
       ...prev,
       [field]: event.complete
     }));
+
+    // Detect card brand for card number field
+    if (field === 'cardNumber') {
+      if (event.brand && event.brand !== 'unknown') {
+        setDetectedCardBrand(event.brand);
+      } else if (event.empty) {
+        setDetectedCardBrand(null);
+      }
+    }
+
+    // Handle errors
+    if (event.error) {
+      setCardErrors(prev => ({
+        ...prev,
+        [field]: event.error.message
+      }));
+      setValidationErrors(prev => ({
+        ...prev,
+        [field]: event.error.message
+      }));
+    } else {
+      setCardErrors(prev => ({
+        ...prev,
+        [field]: null
+      }));
+      if (validationErrors[field]) {
+        setValidationErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors[field];
+          return newErrors;
+        });
+      }
+    }
+  };
+
+  const getCardBrandInfo = (brand) => {
+    if (!brand) return CARD_BRANDS.unknown;
+    return CARD_BRANDS[brand] || CARD_BRANDS.unknown;
+  };
+
+  const renderCardBrandIcon = (brand) => {
+    const brandInfo = getCardBrandInfo(brand);
+    
+    // Mastercard has a special two-circle design
+    if (brand === 'mastercard') {
+      return (
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 40,
+            height: 28,
+            borderRadius: 1.5,
+            position: 'relative',
+            overflow: 'hidden',
+            bgcolor: '#000',
+          }}
+          title={brandInfo.name}
+        >
+          <Box
+            sx={{
+              position: 'absolute',
+              width: 24,
+              height: 24,
+              borderRadius: '50%',
+              bgcolor: '#EB001B',
+              left: 6,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              zIndex: 1,
+            }}
+          />
+          <Box
+            sx={{
+              position: 'absolute',
+              width: 24,
+              height: 24,
+              borderRadius: '50%',
+              bgcolor: '#F79E1B',
+              right: 6,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              zIndex: 0,
+            }}
+          />
+        </Box>
+      );
+    }
+    
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 40,
+          height: 28,
+          borderRadius: 1.5,
+          background: brandInfo.bgGradient,
+          color: brandInfo.textColor,
+          fontSize: brand === 'amex' ? '8px' : brand === 'discover' ? '9px' : '10px',
+          fontWeight: 700,
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+        }}
+        title={brandInfo.name}
+      >
+        {brand === 'visa' ? 'VISA' : 
+         brand === 'amex' ? 'AMEX' :
+         brand === 'discover' ? 'DISC' :
+         brand === 'diners' ? 'DC' :
+         brand === 'jcb' ? 'JCB' :
+         brand === 'unionpay' ? 'UP' : 'CARD'}
+      </Box>
+    );
   };
 
   const handleDonorInfoChange = (field) => (event) => {
@@ -153,10 +334,10 @@ function CheckoutForm({ amount, currency = 'usd', onSuccess, onError, donationDa
       return (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Lock />
-          Pay {new Intl.NumberFormat('en-US', {
+          Pay {amount && amount > 0 ? new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: currency.toUpperCase()
-          }).format(amount)}
+          }).format(amount) : '$0.00'}
         </Box>
       );
     }
@@ -184,17 +365,71 @@ function CheckoutForm({ amount, currency = 'usd', onSuccess, onError, donationDa
     setError('');
 
     try {
-      // Create payment intent on the server
-      const { clientSecret, paymentIntentId, donationId } = await stripeAPI.createPaymentIntent({
+      // Validate amount before making request
+      if (!amount || amount < 0.5) {
+        setError('Minimum donation amount is $0.50');
+        setLoading(false);
+        return;
+      }
+
+      // Validate program ID
+      if (!donationData.programId) {
+        setError('Please select a program before making a donation');
+        setLoading(false);
+        return;
+      }
+
+      console.log('Creating payment intent with data:', {
         amount,
         currency,
         programId: donationData.programId,
         anonymous: donationData.anonymous,
-        message: donationData.message,
         recurring: donationData.recurring
       });
 
-      // Confirm the payment with Stripe
+      // Create payment intent or subscription on the server
+      // Backend will validate authentication for recurring donations
+      const response = await stripeAPI.createPaymentIntent({
+        amount: parseFloat(amount), // Ensure it's a number
+        currency,
+        programId: donationData.programId,
+        anonymous: donationData.anonymous,
+        message: donationData.message,
+        recurring: donationData.recurring,
+        email: donorInfo.email // Pass email for customer creation in recurring donations
+      });
+
+      console.log('Payment intent response:', response);
+
+      // Check for authentication error for recurring donations
+      if (response.message && response.message.includes('Authentication required')) {
+        setError(response.message);
+        onError && onError(response.message);
+        setLoading(false);
+        return;
+      }
+
+      // Check for validation errors
+      if (response.errors && response.errors.length > 0) {
+        const errorMessages = response.errors.map(err => err.msg || err.message).join(', ');
+        setError(`Validation error: ${errorMessages}`);
+        onError && onError(errorMessages);
+        setLoading(false);
+        return;
+      }
+
+      const { clientSecret, paymentIntentId, donationId, isSubscription, subscriptionId } = response;
+      
+      if (!clientSecret) {
+        const errorMsg = response.message || response.error || 'Failed to create payment intent. Please check your Stripe configuration.';
+        console.error('No client secret returned:', response);
+        setError(errorMsg);
+        onError && onError(errorMsg);
+        setLoading(false);
+        return;
+      }
+
+      // Confirm the payment with Stripe (works for both payment intents and subscription invoices)
       const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
           card: elements.getElement(CardNumberElement),
@@ -209,7 +444,7 @@ function CheckoutForm({ amount, currency = 'usd', onSuccess, onError, donationDa
       if (stripeError) {
         setError(stripeError.message);
         onError && onError(stripeError.message);
-      } else if (paymentIntent.status === 'succeeded') {
+      } else if (paymentIntent && paymentIntent.status === 'succeeded') {
         setSuccess(true);
         onSuccess && onSuccess({
           paymentIntentId,
@@ -217,12 +452,32 @@ function CheckoutForm({ amount, currency = 'usd', onSuccess, onError, donationDa
           amount,
           currency,
           status: 'completed',
-          donorInfo
+          donorInfo,
+          isSubscription: isSubscription || false,
+          subscriptionId: subscriptionId || null
         });
       }
     } catch (err) {
-      setError(err.message || 'Payment failed. Please try again.');
-      onError && onError(err.message);
+      console.error('Payment intent creation error:', err);
+      let errorMessage = 'Payment failed. Please try again.';
+      
+      // Provide more specific error messages
+      if (err.message) {
+        errorMessage = err.message;
+      } else if (err.responseData) {
+        errorMessage = err.responseData.message || err.responseData.error || errorMessage;
+        if (err.responseData.errors && Array.isArray(err.responseData.errors)) {
+          const validationErrors = err.responseData.errors.map(e => e.msg || e.message).join(', ');
+          errorMessage = `Validation error: ${validationErrors}`;
+        }
+      } else if (err.status === 400) {
+        errorMessage = 'Invalid payment information. Please check your details and try again.';
+      } else if (err.status === 500) {
+        errorMessage = 'Server error. Please try again later or contact support if the problem persists.';
+      }
+      
+      setError(errorMessage);
+      onError && onError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -241,6 +496,11 @@ function CheckoutForm({ amount, currency = 'usd', onSuccess, onError, donationDa
             currency: currency.toUpperCase()
           }).format(amount)}.
         </Typography>
+        {donationData.recurring?.isRecurring && (
+          <Typography variant="body2" sx={{ color: '#4CAF50', mb: 1, fontWeight: 600 }}>
+            ✓ Recurring donation set up successfully
+          </Typography>
+        )}
         <Typography variant="body2" sx={{ color: '#666' }}>
           You will receive a confirmation email shortly.
         </Typography>
@@ -300,6 +560,30 @@ function CheckoutForm({ amount, currency = 'usd', onSuccess, onError, donationDa
                 error={!!validationErrors.name}
                 helperText={validationErrors.name}
                 required
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                    backgroundColor: '#fff',
+                    '& fieldset': {
+                      borderColor: validationErrors.name ? '#d32f2f' : '#e0e0e0',
+                      borderWidth: '1px',
+                    },
+                    '&:hover fieldset': {
+                      borderColor: validationErrors.name ? '#d32f2f' : '#bdbdbd',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: validationErrors.name ? '#d32f2f' : '#333',
+                      borderWidth: '2px',
+                    },
+                  },
+                  '& .MuiInputLabel-root': {
+                    fontSize: '0.95rem',
+                  },
+                  '& .MuiInputBase-input': {
+                    padding: '14px 16px',
+                    fontSize: '16px',
+                  },
+                }}
               />
             </Grid>
             <Grid item xs={12} md={6}>
@@ -312,6 +596,30 @@ function CheckoutForm({ amount, currency = 'usd', onSuccess, onError, donationDa
                 error={!!validationErrors.email}
                 helperText={validationErrors.email}
                 required
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                    backgroundColor: '#fff',
+                    '& fieldset': {
+                      borderColor: validationErrors.email ? '#d32f2f' : '#e0e0e0',
+                      borderWidth: '1px',
+                    },
+                    '&:hover fieldset': {
+                      borderColor: validationErrors.email ? '#d32f2f' : '#bdbdbd',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: validationErrors.email ? '#d32f2f' : '#333',
+                      borderWidth: '2px',
+                    },
+                  },
+                  '& .MuiInputLabel-root': {
+                    fontSize: '0.95rem',
+                  },
+                  '& .MuiInputBase-input': {
+                    padding: '14px 16px',
+                    fontSize: '16px',
+                  },
+                }}
               />
             </Grid>
             <Grid item xs={12} md={6}>
@@ -323,6 +631,30 @@ function CheckoutForm({ amount, currency = 'usd', onSuccess, onError, donationDa
                 error={!!validationErrors.phone}
                 helperText={validationErrors.phone || 'Include country code (e.g., +1234567890)'}
                 required
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                    backgroundColor: '#fff',
+                    '& fieldset': {
+                      borderColor: validationErrors.phone ? '#d32f2f' : '#e0e0e0',
+                      borderWidth: '1px',
+                    },
+                    '&:hover fieldset': {
+                      borderColor: validationErrors.phone ? '#d32f2f' : '#bdbdbd',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: validationErrors.phone ? '#d32f2f' : '#333',
+                      borderWidth: '2px',
+                    },
+                  },
+                  '& .MuiInputLabel-root': {
+                    fontSize: '0.95rem',
+                  },
+                  '& .MuiInputBase-input': {
+                    padding: '14px 16px',
+                    fontSize: '16px',
+                  },
+                }}
               />
             </Grid>
           </Grid>
@@ -340,56 +672,168 @@ function CheckoutForm({ amount, currency = 'usd', onSuccess, onError, donationDa
             Please enter your card details. Your bank may require additional verification.
           </Typography>
           
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
+          {/* Unified Card Input Container */}
               <Box sx={{ position: 'relative' }}>
-                <Typography variant="body2" sx={{ mb: 1, fontWeight: 'bold' }}>
-                  Card Number *
-                </Typography>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 0,
+                  width: '100%',
+                  border: (cardErrors.cardNumber || cardErrors.cardExpiry || cardErrors.cardCvc) 
+                    ? '2px solid #d32f2f' 
+                    : '1px solid #e0e0e0',
+                  borderRadius: 3,
+                  bgcolor: '#fff',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    borderColor: '#bdbdbd',
+                  },
+                  '&:focus-within': {
+                    borderColor: '#333',
+                    borderWidth: '2px',
+                  },
+                }}
+              >
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  width: '100%',
+                  gap: 0,
+                }}>
+                  {/* Card Icon/Brand Logo */}
+                  <Box sx={{ 
+                    pl: 2, 
+                    pr: 1.5, 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    {detectedCardBrand ? (
+                      renderCardBrandIcon(detectedCardBrand)
+                    ) : (
+                      <CreditCard sx={{ color: '#999', fontSize: 24 }} />
+                    )}
+                  </Box>
+                  
+                  {/* Card Number Field */}
+                  <Box sx={{ flex: '1 1 auto', minWidth: 0, position: 'relative' }}>
+                    <Box
+                      sx={{
+                        width: '100%',
+                        '& .StripeElement': {
+                          width: '100%',
+                          padding: '14px 12px 14px 0',
+                        },
+                        '& .StripeElement input': {
+                          width: '100%',
+                          fontSize: '16px',
+                        },
+                        '& iframe': {
+                          width: '100% !important',
+                        },
+                      }}
+                    >
                 <CardNumberElement 
                   options={CARD_ELEMENT_OPTIONS}
                   onChange={handleCardChange('cardNumber')}
                 />
-                {validationErrors.cardNumber && (
-                  <FormHelperText error sx={{ mt: 1 }}>
-                    {validationErrors.cardNumber}
-                  </FormHelperText>
-                )}
+                    </Box>
               </Box>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Box sx={{ position: 'relative' }}>
-                <Typography variant="body2" sx={{ mb: 1, fontWeight: 'bold' }}>
-                  Expiry Date *
-                </Typography>
+                  
+                  {/* Divider */}
+                  <Box sx={{ 
+                    width: '1px', 
+                    height: '32px', 
+                    bgcolor: '#e0e0e0',
+                    flexShrink: 0,
+                  }} />
+                  
+                  {/* Expiry Date Field */}
+                  <Box sx={{ 
+                    flex: '0 0 100px',
+                    minWidth: 0,
+                    position: 'relative',
+                  }}>
+                    <Box
+                      sx={{
+                        width: '100%',
+                        '& .StripeElement': {
+                          width: '100%',
+                          padding: '14px 12px',
+                        },
+                        '& .StripeElement input': {
+                          width: '100%',
+                          fontSize: '16px',
+                        },
+                        '& iframe': {
+                          width: '100% !important',
+                        },
+                      }}
+                    >
                 <CardExpiryElement 
                   options={CARD_ELEMENT_OPTIONS}
                   onChange={handleCardChange('cardExpiry')}
                 />
-                {validationErrors.cardExpiry && (
-                  <FormHelperText error sx={{ mt: 1 }}>
-                    {validationErrors.cardExpiry}
-                  </FormHelperText>
-                )}
+                    </Box>
               </Box>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Box sx={{ position: 'relative' }}>
-                <Typography variant="body2" sx={{ mb: 1, fontWeight: 'bold' }}>
-                  CVC *
-                </Typography>
+                  
+                  {/* Divider */}
+                  <Box sx={{ 
+                    width: '1px', 
+                    height: '32px', 
+                    bgcolor: '#e0e0e0',
+                    flexShrink: 0,
+                  }} />
+                  
+                  {/* CVC Field */}
+                  <Box sx={{ 
+                    flex: '0 0 80px',
+                    minWidth: 0,
+                    position: 'relative',
+                  }}>
+                    <Box
+                      sx={{
+                        width: '100%',
+                        '& .StripeElement': {
+                          width: '100%',
+                          padding: '14px 16px 14px 12px',
+                        },
+                        '& .StripeElement input': {
+                          width: '100%',
+                          fontSize: '16px',
+                        },
+                        '& iframe': {
+                          width: '100% !important',
+                        },
+                      }}
+                    >
                 <CardCvcElement 
                   options={CARD_ELEMENT_OPTIONS}
                   onChange={handleCardChange('cardCvc')}
                 />
-                {validationErrors.cardCvc && (
-                  <FormHelperText error sx={{ mt: 1 }}>
-                    {validationErrors.cardCvc}
+                    </Box>
+                  </Box>
+                </Box>
+              </Paper>
+              
+              {/* Error Messages */}
+              {(validationErrors.cardNumber || cardErrors.cardNumber) && (
+                <FormHelperText error sx={{ mt: 1, ml: 0 }}>
+                  {validationErrors.cardNumber || cardErrors.cardNumber}
+                </FormHelperText>
+              )}
+              {(validationErrors.cardExpiry || cardErrors.cardExpiry) && (
+                <FormHelperText error sx={{ mt: 1, ml: 0 }}>
+                  {validationErrors.cardExpiry || cardErrors.cardExpiry}
+                </FormHelperText>
+              )}
+              {(validationErrors.cardCvc || cardErrors.cardCvc) && (
+                <FormHelperText error sx={{ mt: 1, ml: 0 }}>
+                  {validationErrors.cardCvc || cardErrors.cardCvc}
                   </FormHelperText>
                 )}
               </Box>
-            </Grid>
-          </Grid>
         </Box>
 
         {error && (

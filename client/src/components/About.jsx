@@ -139,7 +139,7 @@ export default function About() {
                   fontSize: { xs: '1.5rem', md: '2rem' }
                 }}
               >
-                Every Child Deserves Opportunity
+                Gratitude-Driven Giving Creates Lasting Impact
               </Typography>
               <Typography 
                 variant="body1" 
@@ -150,8 +150,9 @@ export default function About() {
                   color: 'var(--gray)'
                 }}
               >
-                Founded in 2020, Gifted givings is dedicated to transforming the lives of children 
-                through education, nutrition, and healthcare initiatives. We believe every child 
+                Founded in 2020, Gifted givings transforms lives through education, nutrition, and healthcare 
+                by combining gratitude with meaningful action. We believe that when we move beyond counting resources 
+                and focus on behavior change and compassionate connections, every child 
                 has the right to thrive, regardless of their circumstances.
               </Typography>
               <Typography 

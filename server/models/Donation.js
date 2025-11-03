@@ -50,7 +50,7 @@ const donationSchema = new mongoose.Schema({
     },
     frequency: {
       type: String,
-      enum: ['monthly', 'quarterly', 'yearly'],
+      enum: ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'],
       default: 'monthly'
     },
     nextPaymentDate: Date,
@@ -58,6 +58,15 @@ const donationSchema = new mongoose.Schema({
     totalPayments: {
       type: Number,
       default: 0
+    },
+    stripeSubscriptionId: {
+      type: String,
+      default: null
+    },
+    originalDonationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Donation',
+      default: null
     }
   },
   designation: {

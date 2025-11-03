@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Box, Card, CardContent, Typography, Button, CircularProgress } from '@mui/material';
+import { Box, Card, CardContent, Typography, Button, CircularProgress, Alert } from '@mui/material';
+import { authAPI } from '../services/api';
 
 function useQuery() {
   return new URLSearchParams(useLocation().search);
@@ -17,31 +18,31 @@ export default function VerifyEmail() {
 
   useEffect(() => {
     async function verify() {
+      if (!token) {
+        setLoading(false);
+        setSuccess(false);
+        setMessage('No verification token provided.');
+        return;
+      }
+
       setLoading(true);
       try {
-        const res = await fetch(`/api/auth/verify-email?token=${token}`);
-        const data = await res.json();
-        if (res.ok) {
-          setSuccess(true);
-          setMessage(data.message || 'Email verified successfully!');
-          if (data.user && data.user.email) setEmail(data.user.email);
-        } else {
-          setSuccess(false);
-          setMessage(data.message || 'Verification failed.');
+        const data = await authAPI.verifyEmail(token);
+        setSuccess(true);
+        setMessage(data.message || 'Email verified successfully!');
+        if (data.user && data.user.email) {
+          setEmail(data.user.email);
         }
-      } catch (e) {
+      } catch (error) {
         setSuccess(false);
-        setMessage('An error occurred during verification.');
+        setMessage(error.message || 'Verification failed. The token may be invalid or expired.');
+        console.error('Verification error:', error);
       } finally {
         setLoading(false);
       }
     }
-    if (token) verify();
-    else {
-      setLoading(false);
-      setSuccess(false);
-      setMessage('No verification token provided.');
-    }
+    
+    verify();
   }, [token]);
 
   const handleContinue = () => {
@@ -54,19 +55,55 @@ export default function VerifyEmail() {
   };
 
   return (
-    <Box sx={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <Card sx={{ maxWidth: 400, width: '100%', p: 3, borderRadius: 3, boxShadow: 4 }}>
+    <Box sx={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}>
+      <Card sx={{ maxWidth: 500, width: '100%', p: 3, borderRadius: 3, boxShadow: 4 }}>
         <CardContent sx={{ textAlign: 'center' }}>
           {loading ? (
-            <CircularProgress />
+            <>
+              <CircularProgress sx={{ mb: 2 }} />
+              <Typography variant="body1" color="text.secondary">
+                Verifying your email...
+              </Typography>
+            </>
           ) : (
             <>
-              <Typography variant="h5" sx={{ mb: 2, color: success ? 'green' : 'error.main' }}>
-                {success ? 'Success!' : 'Verification Failed'}
+              <Typography variant="h5" sx={{ mb: 2, color: success ? 'success.main' : 'error.main' }}>
+                {success ? '✓ Email Verified!' : 'Verification Failed'}
               </Typography>
-              <Typography sx={{ mb: 3 }}>{message}</Typography>
+              <Alert 
+                severity={success ? 'success' : 'error'} 
+                sx={{ mb: 3, textAlign: 'left' }}
+              >
+                {message}
+              </Alert>
               {success && (
-                <Button variant="contained" color="primary" onClick={handleContinue}>Continue</Button>
+                <>
+                  {email && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      Your email <strong>{email}</strong> has been verified.
+                    </Typography>
+                  )}
+                  <Button 
+                    variant="contained" 
+                    color="primary" 
+                    onClick={handleContinue}
+                    fullWidth
+                    sx={{ mt: 2 }}
+                  >
+                    Continue to Login
+                  </Button>
+                </>
+              )}
+              {!success && (
+                <Button 
+                  variant="outlined" 
+                  color="primary" 
+                  onClick={() => navigate('/')}
+                  fullWidth
+                  sx={{ mt: 2 }}
+                >
+                  Go to Home
+                </Button>
               )}
             </>
           )}

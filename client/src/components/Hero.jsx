@@ -30,16 +30,17 @@ export default function Hero() {
   return (
     <Box
       sx={{
-        minHeight: { xs: '100vh', md: '90vh' },
+        minHeight: { xs: 'auto', sm: '100vh', md: '90vh' },
         display: 'flex',
         alignItems: 'center',
         position: 'relative',
         background: `linear-gradient(135deg, rgba(1,55,31,0.5), rgba(0,36,17,0.5)), url(/heroimge.jpg)`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        backgroundAttachment: 'fixed',
+        backgroundAttachment: { xs: 'scroll', md: 'fixed' }, // Prevent fixed attachment on mobile
         color: 'var(--white)',
         overflow: 'hidden',
+        pb: { xs: 4, sm: 6, md: 0 }, // Add bottom padding on mobile to prevent overlap
         '&::before': {
           content: '""',
           position: 'absolute',
@@ -76,13 +77,22 @@ export default function Hero() {
               textShadow: '0 4px 20px rgba(0,255,140,0.3)'
             }}
           >
-            Every Child Deserves a
+            Counting Source-Driven Things
             <Box component="span" sx={{ 
               display: 'block',
               color: 'var(--accent-green)',
               WebkitTextFillColor: 'var(--accent-green)'
             }}>
-              Bright Future
+              Impacts the Future Negatively
+            </Box>
+            <Box component="span" sx={{ 
+              display: 'block',
+              fontSize: { xs: '1.8rem', sm: '2.5rem', md: '3rem' },
+              mt: 2,
+              color: 'rgba(255,255,255,0.95)',
+              WebkitTextFillColor: 'rgba(255,255,255,0.95)'
+            }}>
+              Let's Join Gratitude and Behavior to Giving
             </Box>
           </Typography>
 
@@ -99,8 +109,9 @@ export default function Hero() {
               fontWeight: 400
             }}
           >
-            At Gifted givings, we bridge the gap between generosity and need. Join us in providing 
-            education, healthcare, and hope to children in underserved communities worldwide.
+            When we focus only on counting resources and outcomes, we miss the deeper meaning of giving. 
+            True impact comes from gratitude-driven actions and behavior change. Join us in creating meaningful 
+            connections through compassionate giving that transforms both donors and recipients.
           </Typography>
 
           {/* Action Buttons */}
@@ -108,7 +119,7 @@ export default function Hero() {
             direction={{ xs: 'column', sm: 'row' }} 
             spacing={3} 
             justifyContent="center"
-            sx={{ mb: 6 }}
+            sx={{ mb: { xs: 4, sm: 5, md: 6 } }}
           >
             <Button 
               onClick={() => scrollToSection('#donate')}
@@ -164,8 +175,9 @@ export default function Hero() {
             sx={{ 
               display: 'flex',
               justifyContent: 'center',
-              gap: { xs: 2, md: 4 },
-              flexWrap: 'wrap'
+              gap: { xs: 1.5, sm: 2, md: 4 },
+              flexWrap: 'wrap',
+              mb: { xs: 2, md: 0 }
             }}
           >
             {statsLoading ? (
@@ -181,12 +193,14 @@ export default function Hero() {
                 key={index}
                 sx={{ 
                   textAlign: 'center',
-                  p: 2,
+                  p: { xs: 1.5, sm: 2 },
                   borderRadius: 3,
                   background: 'rgba(255,255,255,0.1)',
                   backdropFilter: 'blur(10px)',
                   border: '1px solid rgba(255,255,255,0.2)',
-                  minWidth: 120
+                  minWidth: { xs: 100, sm: 120 },
+                  flex: { xs: '1 1 calc(33.333% - 12px)', sm: '0 1 auto' },
+                  maxWidth: { xs: 'calc(33.333% - 12px)', sm: 'none' }
                 }}
               >
                 <Box sx={{ color: 'var(--accent-green)', mb: 1 }}>
@@ -197,7 +211,8 @@ export default function Hero() {
                   sx={{ 
                     fontWeight: 700,
                     color: 'var(--accent-green)',
-                    mb: 0.5
+                    mb: 0.5,
+                    fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2.125rem' }
                   }}
                 >
                   {stat.number}
@@ -206,7 +221,8 @@ export default function Hero() {
                   variant="body2" 
                   sx={{ 
                     color: 'rgba(255,255,255,0.8)',
-                    fontWeight: 500
+                    fontWeight: 500,
+                    fontSize: { xs: '0.7rem', sm: '0.875rem' }
                   }}
                 >
                   {stat.label}
@@ -221,10 +237,11 @@ export default function Hero() {
       <Box 
         sx={{ 
           position: 'absolute',
-          bottom: 30,
+          bottom: { xs: 10, sm: 20, md: 30 },
           left: '50%',
           transform: 'translateX(-50%)',
-          animation: 'bounce 2s infinite'
+          animation: 'bounce 2s infinite',
+          zIndex: 3
         }}
       >
         <Box 
@@ -248,7 +265,7 @@ export default function Hero() {
         />
       </Box>
 
-      <style jsx>{`
+      <style>{`
         @keyframes bounce {
           0%, 20%, 50%, 80%, 100% {
             transform: translateX(-50%) translateY(0);

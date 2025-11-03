@@ -1,6 +1,14 @@
 import { AUTH_STORAGE_KEY } from '../constants/auth';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Use environment variable or default to localhost for development
+const API_BASE_URL = import.meta.env.VITE_API_URL || 
+  (import.meta.env.DEV ? 'http://localhost:5000/api' : 'https://gifted-givings.onrender.com/api');
+
+// Debug log in development
+if (import.meta.env.DEV) {
+  console.log('🔗 API Base URL:', API_BASE_URL);
+  console.log('🌍 Environment:', import.meta.env.MODE);
+}
 
 // Helper function to handle API requests
 const apiRequest = async (endpoint, options = {}) => {
@@ -15,7 +23,12 @@ const apiRequest = async (endpoint, options = {}) => {
     ...options,
   };
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+  // Remove body for GET requests
+  if ((!options.method || options.method === 'GET') && config.body) {
+    delete config.body;
+  }
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
       // Not JSON, probably an error page or server error
@@ -64,6 +77,8 @@ export const authAPI = {
     method: 'POST',
     body: JSON.stringify({ token, password }),
   }),
+  
+  verifyEmail: (token) => apiRequest(`/auth/verify-email?token=${encodeURIComponent(token)}`),
 };
 
 // Programs API
@@ -190,6 +205,24 @@ export const stripeAPI = {
   createPaymentIntent: (data) => apiRequest('/stripe/create-payment-intent', {
     method: 'POST',
     body: JSON.stringify(data),
+  }),
+  
+  getSubscription: (subscriptionId) => apiRequest(`/stripe/subscription/${subscriptionId}`),
+  
+  getAllSubscriptions: () => apiRequest('/stripe/subscriptions'),
+  
+  cancelSubscription: (subscriptionId, cancelImmediately = false) => apiRequest(`/stripe/subscription/${subscriptionId}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify({ cancelImmediately }),
+  }),
+  
+  modifySubscription: (subscriptionId, data) => apiRequest(`/stripe/subscription/${subscriptionId}/modify`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  
+  reactivateSubscription: (subscriptionId) => apiRequest(`/stripe/subscription/${subscriptionId}/reactivate`, {
+    method: 'POST',
   }),
 };
 

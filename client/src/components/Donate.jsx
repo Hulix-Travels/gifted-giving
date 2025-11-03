@@ -53,13 +53,20 @@ export default function Donate() {
   const { user } = useAuth();
   const [programs, setPrograms] = useState([]);
   const [selectedProgram, setSelectedProgram] = useState('');
-  const [selectedAmount, setSelectedAmount] = useState(25);
+  const [selectedAmount, setSelectedAmount] = useState(null);
   const [customAmount, setCustomAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('stripe');
   const [anonymous, setAnonymous] = useState(false);
   const [message, setMessage] = useState('');
   const [recurring, setRecurring] = useState(false);
   const [recurringFrequency, setRecurringFrequency] = useState('monthly');
+  
+  // Reset recurring if user logs out
+  useEffect(() => {
+    if (!user && recurring) {
+      setRecurring(false);
+    }
+  }, [user, recurring]);
   const [loading, setLoading] = useState(false);
   const [programsLoading, setProgramsLoading] = useState(true);
   const [_showStripePayment, setShowStripePayment] = useState(false);
@@ -72,9 +79,20 @@ export default function Donate() {
       try {
         setProgramsLoading(true);
         const response = await programsAPI.getAll({ status: 'active' });
-        setPrograms(response.programs || []);
-        if (response.programs && response.programs.length > 0) {
-          setSelectedProgram(response.programs[0]._id);
+        const programsList = response.programs || [];
+        setPrograms(programsList);
+        
+        // Check if there's a program ID stored in sessionStorage (from support button)
+        const storedProgramId = sessionStorage.getItem('selectedProgramId');
+        
+        if (storedProgramId && programsList.some(p => p._id === storedProgramId)) {
+          // Program exists, select it
+          setSelectedProgram(storedProgramId);
+          // Clear the stored ID so it doesn't persist on page reload
+          sessionStorage.removeItem('selectedProgramId');
+        } else if (programsList.length > 0) {
+          // No stored program, select first program
+          setSelectedProgram(programsList[0]._id);
         }
       } catch (error) {
         setSnackbar({ 
@@ -89,6 +107,40 @@ export default function Donate() {
 
     fetchPrograms();
   }, []);
+
+  // Listen for program selection events from other components
+  useEffect(() => {
+    const handleProgramSelect = (event) => {
+      const programId = event.detail?.programId || sessionStorage.getItem('selectedProgramId');
+      
+      if (!programId) return;
+      
+      // Check if programs are loaded and the program exists
+      if (programs.length > 0) {
+        const programExists = programs.some(p => p._id === programId);
+        if (programExists) {
+          setSelectedProgram(programId);
+          // Clear the stored ID after selecting
+          sessionStorage.removeItem('selectedProgramId');
+        }
+      }
+    };
+
+    // Listen for the custom event
+    window.addEventListener('program-selected', handleProgramSelect);
+    
+    // Also check sessionStorage when programs load
+    if (programs.length > 0) {
+      const storedProgramId = sessionStorage.getItem('selectedProgramId');
+      if (storedProgramId) {
+        handleProgramSelect({ detail: { programId: storedProgramId } });
+      }
+    }
+
+    return () => {
+      window.removeEventListener('program-selected', handleProgramSelect);
+    };
+  }, [programs]);
 
   // Get donation options based on selected program
   const getDonationOptions = () => {
@@ -124,7 +176,8 @@ export default function Donate() {
 
   // Get current impact for display
   const getCurrentImpact = () => {
-    const amount = customAmount ? parseFloat(customAmount) : selectedAmount;
+    const amount = customAmount ? parseFloat(customAmount) : (selectedAmount || 0);
+    if (!amount || amount === 0) return {};
     return calculateImpact(amount);
   };
 
@@ -183,6 +236,16 @@ export default function Donate() {
 
     if (!selectedProgram) {
       setSnackbar({ open: true, message: 'Please select a program', severity: 'error' });
+      return;
+    }
+
+    // Check if recurring is selected but user is not logged in
+    if (recurring && !user) {
+      setSnackbar({ 
+        open: true, 
+        message: 'Please log in to set up recurring donations', 
+        severity: 'warning' 
+      });
       return;
     }
 
@@ -299,10 +362,10 @@ export default function Donate() {
           )}
         </Box>
 
-        <Grid container spacing={6} justifyContent="center" alignItems="flex-start">
+        <Grid container spacing={6} justifyContent="center" alignItems="stretch">
           {/* Program Selection and Donation Options */}
           <Grid item xs={12} md={5}>
-            <Card sx={{ p: 4, borderRadius: 3, height: 'fit-content', boxShadow: 4 }}>
+            <Card sx={{ p: 4, borderRadius: 3, height: '100%', boxShadow: 4, display: 'flex', flexDirection: 'column' }}>
               <Typography variant="h5" sx={{ mb: 3, fontWeight: 700, color: 'var(--primary-green)' }}>
                 Choose Your Program
               </Typography>
@@ -378,7 +441,10 @@ export default function Donate() {
                     {donationOptions.map((option, index) => (
                       <Grid xs={6} key={index}>
                         <Card 
-                          onClick={() => setSelectedAmount(option.amount)}
+                          onClick={() => {
+                            setSelectedAmount(option.amount);
+                            setCustomAmount(''); // Clear custom amount when selecting preset
+                          }}
                           sx={{ 
                             cursor: 'pointer',
                             textAlign: 'center',
@@ -419,7 +485,12 @@ export default function Donate() {
                     label="Or enter custom amount"
                     type="number"
                     value={customAmount}
-                    onChange={(e) => setCustomAmount(e.target.value)}
+                    onChange={(e) => {
+                      setCustomAmount(e.target.value);
+                      if (e.target.value) {
+                        setSelectedAmount(null); // Clear preset selection when entering custom amount
+                      }
+                    }}
                     InputProps={{
                       startAdornment: <InputAdornment position="start">$</InputAdornment>,
                     }}
@@ -520,44 +591,97 @@ export default function Donate() {
 
           {/* Donation Form */}
           <Grid item xs={12} md={5}>
-            <Card sx={{ p: 4, borderRadius: 3, boxShadow: 4 }}>
-              <Typography variant="h5" sx={{ mb: 3, fontWeight: 700, color: 'var(--primary-green)' }}>
+            <Card sx={{ p: 4, borderRadius: 3, boxShadow: 4, position: 'sticky', top: 100, height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <Typography variant="h5" sx={{ mb: 4, fontWeight: 700, color: 'var(--primary-green)', fontSize: '1.75rem' }}>
                 Complete Your Donation
               </Typography>
 
-              {/* Donation Summary at the top */}
+              {/* Enhanced Donation Summary */}
               {selectedProgramData && (
-                <Box sx={{ mb: 3, p: 2, bgcolor: 'rgba(0,255,140,0.07)', borderRadius: 2, border: '1px solid rgba(0,255,140,0.15)' }}>
-                  <Box display="flex" alignItems="center" gap={2} mb={1}>
-                    <Avatar src={getImageUrl(selectedProgramData.image)} sx={{ width: 40, height: 40 }} />
-                    <Box>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'var(--primary-green)' }}>
+                <Box sx={{ 
+                  mb: 4, 
+                  p: 3, 
+                  background: 'linear-gradient(135deg, rgba(0,255,140,0.1) 0%, rgba(0,255,140,0.05) 100%)',
+                  borderRadius: 3, 
+                  border: '2px solid rgba(0,255,140,0.2)',
+                  boxShadow: '0 4px 12px rgba(0,255,140,0.1)'
+                }}>
+                  <Box display="flex" alignItems="center" gap={2} mb={2}>
+                    <Avatar 
+                      src={getImageUrl(selectedProgramData.image)} 
+                      sx={{ width: 50, height: 50, border: '2px solid var(--primary-green)' }} 
+                    />
+                    <Box flex={1}>
+                      <Typography variant="h6" sx={{ fontWeight: 700, color: 'var(--primary-green)', mb: 0.5 }}>
                         {selectedProgramData.name}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                        {selectedProgramData.category}
-                      </Typography>
+                      <Chip 
+                        label={selectedProgramData.category}
+                        size="small"
+                        sx={{ 
+                          bgcolor: 'var(--primary-green)', 
+                          color: 'white',
+                          fontWeight: 500,
+                          textTransform: 'capitalize'
+                        }}
+                      />
                     </Box>
                   </Box>
-                  <Typography variant="body2" sx={{ color: '#666' }}>
-                    <strong>Amount:</strong> ${customAmount ? customAmount : selectedAmount}
-                  </Typography>
+                  
+                  <Divider sx={{ my: 2 }} />
+                  
+                  {(customAmount || selectedAmount) && (
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                      <Typography variant="body1" sx={{ fontWeight: 600, color: '#666' }}>
+                        Donation Amount:
+                      </Typography>
+                      <Typography variant="h5" sx={{ fontWeight: 700, color: 'var(--primary-green)' }}>
+                        ${customAmount ? parseFloat(customAmount).toFixed(2) : selectedAmount.toFixed(2)}
+                      </Typography>
+                    </Box>
+                  )}
+                  {!customAmount && !selectedAmount && (
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      <Typography variant="body2">
+                        Please select or enter a donation amount above
+                      </Typography>
+                    </Alert>
+                  )}
+                  
                   {/* Impact summary */}
-                  <Box mt={1}>
+                  <Box sx={{ 
+                    mt: 2, 
+                    p: 2, 
+                    bgcolor: 'rgba(255,255,255,0.7)', 
+                    borderRadius: 2,
+                    border: '1px solid rgba(0,255,140,0.2)'
+                  }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'var(--primary-green)', mb: 1.5 }}>
+                      Your Impact:
+                    </Typography>
                     {(() => {
                       const impact = getCurrentImpact();
                       const impactItems = [];
-                      if (impact.children > 0) impactItems.push(`${impact.children} children`);
-                      if (impact.communities > 0) impactItems.push(`${impact.communities} communities`);
-                      if (impact.schools > 0) impactItems.push(`${impact.schools} schools`);
-                      if (impact.meals > 0) impactItems.push(`${impact.meals} meals`);
-                      if (impact.checkups > 0) impactItems.push(`${impact.checkups} checkups`);
+                      if (impact.children > 0) impactItems.push({ icon: '👶', text: `${impact.children} children`, color: '#4CAF50' });
+                      if (impact.communities > 0) impactItems.push({ icon: '🏘️', text: `${impact.communities} communities`, color: '#2196F3' });
+                      if (impact.schools > 0) impactItems.push({ icon: '🏫', text: `${impact.schools} schools`, color: '#FF9800' });
+                      if (impact.meals > 0) impactItems.push({ icon: '🍽️', text: `${impact.meals} meals`, color: '#FF5722' });
+                      if (impact.checkups > 0) impactItems.push({ icon: '🏥', text: `${impact.checkups} checkups`, color: '#9C27B0' });
                       return impactItems.length > 0 ? (
-                        <Typography variant="caption" sx={{ color: 'var(--primary-green)' }}>
-                          Impact: {impactItems.join(', ')}
-                        </Typography>
+                        <Grid container spacing={1}>
+                          {impactItems.map((item, idx) => (
+                            <Grid item xs={6} key={idx}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Typography variant="body2" sx={{ fontSize: '1.1rem' }}>{item.icon}</Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 600, color: item.color, fontSize: '0.9rem' }}>
+                                  {item.text}
+                                </Typography>
+                              </Box>
+                            </Grid>
+                          ))}
+                        </Grid>
                       ) : (
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
                           Impact will be calculated based on your donation amount
                         </Typography>
                       );
@@ -566,86 +690,209 @@ export default function Donate() {
                 </Box>
               )}
 
-              <Box sx={{ mb: 3, p: 2, bgcolor: '#f8f9fa', borderRadius: 2, border: '1px solid #e9ecef' }}>
-                <Box display="flex" alignItems="center" gap={2}>
-                  <CreditCard sx={{ color: '#666' }} />
-                  <Typography variant="body1" sx={{ fontWeight: 500, color: '#333' }}>
-                    Credit/Debit Card Payment
-                  </Typography>
-                </Box>
-                <Typography variant="body2" sx={{ color: '#666', mt: 1, fontSize: '0.9rem' }}>
-                  Secure payment processing powered by Stripe
+              {/* Payment Method Section */}
+              <Box sx={{ mb: 4 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'var(--primary-green)', mb: 2 }}>
+                  Payment Method
                 </Typography>
+                <Box sx={{ 
+                  p: 2.5, 
+                  bgcolor: '#f8f9fa', 
+                  borderRadius: 2, 
+                  border: '2px solid #e9ecef',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2
+                }}>
+                  <Box sx={{ 
+                    p: 1.5, 
+                    bgcolor: 'white', 
+                    borderRadius: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <CreditCard sx={{ color: 'var(--primary-green)', fontSize: 32 }} />
+                  </Box>
+                  <Box flex={1}>
+                    <Typography variant="body1" sx={{ fontWeight: 600, color: '#333', mb: 0.5 }}>
+                      Credit/Debit Card
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#666', fontSize: '0.85rem' }}>
+                      Secure payment powered by Stripe • SSL Encrypted
+                    </Typography>
+                  </Box>
+                </Box>
               </Box>
 
-              {!user && (
-                <Alert severity="info" sx={{ mb: 3 }}>
-                  <Typography variant="body2">
-                    You're making an anonymous donation. <strong>Log in</strong> to make public donations and track your giving history.
+              {/* Donation Preferences */}
+              <Box sx={{ mb: 4 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'var(--primary-green)', mb: 2 }}>
+                  Donation Preferences
+                </Typography>
+                
+                {!user && (
+                  <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+                    <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+                      You're making an anonymous donation. <strong>Log in</strong> to make public donations and track your giving history.
+                    </Typography>
+                  </Alert>
+                )}
+
+                <Box sx={{ 
+                  p: 2.5, 
+                  bgcolor: '#fafbfc', 
+                  borderRadius: 2, 
+                  border: '1px solid #e9ecef'
+                }}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={anonymous}
+                        onChange={(e) => setAnonymous(e.target.checked)}
+                        color="primary"
+                        disabled={!user}
+                      />
+                    }
+                    label={
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#333' }}>
+                          Make this donation anonymous
+                        </Typography>
+                        {!user && (
+                          <Typography variant="caption" sx={{ color: '#666', display: 'block', mt: 0.5 }}>
+                            Login required to make public donations
+                          </Typography>
+                        )}
+                      </Box>
+                    }
+                    sx={{ mb: 2.5, width: '100%', alignItems: 'flex-start' }}
+                  />
+                  
+                  <Divider sx={{ my: 2 }} />
+                  
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={recurring}
+                        onChange={(e) => setRecurring(e.target.checked)}
+                        color="primary"
+                        disabled={!user}
+                      />
+                    }
+                    label={
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600, color: '#333' }}>
+                          Make this a recurring donation
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: '#666', display: 'block', mt: 0.5 }}>
+                          {user 
+                            ? 'Help sustain our programs with regular giving'
+                            : 'Login required to set up recurring donations'}
+                        </Typography>
+                      </Box>
+                    }
+                    sx={{ mb: recurring ? 2 : 0, width: '100%', alignItems: 'flex-start' }}
+                  />
+                  
+                  {!user && (
+                    <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>
+                      <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
+                        <strong>Recurring donations require an account.</strong> Please log in or register to set up automatic recurring donations and manage them from your dashboard.
+                      </Typography>
+                    </Alert>
+                  )}
+
+                  {recurring && (
+                    <FormControl fullWidth sx={{ mt: 2 }}>
+                      <InputLabel sx={{ fontWeight: 500 }}>Recurring Frequency</InputLabel>
+                      <Select
+                        value={recurringFrequency}
+                        onChange={(e) => setRecurringFrequency(e.target.value)}
+                        label="Recurring Frequency"
+                        sx={{ bgcolor: 'white' }}
+                      >
+                        <MenuItem value="daily">
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Daily</Typography>
+                            <Typography variant="caption" sx={{ color: '#666' }}>Every day</Typography>
+                          </Box>
+                        </MenuItem>
+                        <MenuItem value="weekly">
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Weekly</Typography>
+                            <Typography variant="caption" sx={{ color: '#666' }}>Every week</Typography>
+                          </Box>
+                        </MenuItem>
+                        <MenuItem value="monthly">
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Monthly</Typography>
+                            <Typography variant="caption" sx={{ color: '#666' }}>Every month</Typography>
+                          </Box>
+                        </MenuItem>
+                        <MenuItem value="quarterly">
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Quarterly</Typography>
+                            <Typography variant="caption" sx={{ color: '#666' }}>Every 3 months</Typography>
+                          </Box>
+                        </MenuItem>
+                        <MenuItem value="yearly">
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>Yearly</Typography>
+                            <Typography variant="caption" sx={{ color: '#666' }}>Once per year</Typography>
+                          </Box>
+                        </MenuItem>
+                      </Select>
+                    </FormControl>
+                  )}
+                </Box>
+              </Box>
+
+              {/* Optional Message */}
+              <Box sx={{ mb: 4 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'var(--primary-green)', mb: 2 }}>
+                  Personal Message <Typography component="span" variant="caption" sx={{ color: '#999', fontWeight: 400 }}>(Optional)</Typography>
+                </Typography>
+                <TextField
+                  fullWidth
+                  label="Share your message"
+                  multiline
+                  rows={4}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="Tell us why you're making this donation... Your words inspire others!"
+                  sx={{ 
+                    '& .MuiOutlinedInput-root': {
+                      bgcolor: 'white',
+                      '&:hover fieldset': {
+                        borderColor: 'var(--primary-green)',
+                      },
+                    }
+                  }}
+                  helperText="Your message may be shared to inspire others (anonymous donations won't show your name)"
+                />
+              </Box>
+
+              {/* Payment Button Section */}
+              {(customAmount || selectedAmount) && (
+                <Box sx={{ 
+                  mt: 4, 
+                  p: 3, 
+                  bgcolor: '#f8f9fa', 
+                  borderRadius: 2,
+                  border: '2px solid #e9ecef'
+                }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#666', mb: 2, textAlign: 'center' }}>
+                    Ready to make a difference?
                   </Typography>
-                </Alert>
-              )}
-
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={anonymous}
-                    onChange={(e) => setAnonymous(e.target.checked)}
-                    color="primary"
-                    disabled={!user} // Disable if user is not logged in
-                  />
-                }
-                label={user ? "Make this donation anonymous" : "Anonymous donation (login required to make public donations)"}
-                sx={{ mb: 3 }}
-              />
-
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={recurring}
-                    onChange={(e) => setRecurring(e.target.checked)}
-                    color="primary"
-                  />
-                }
-                label="Make this a recurring donation"
-                sx={{ mb: 2 }}
-              />
-
-              {recurring && (
-                <FormControl fullWidth sx={{ mb: 3 }}>
-                  <InputLabel>Frequency</InputLabel>
-                  <Select
-                    value={recurringFrequency}
-                    onChange={(e) => setRecurringFrequency(e.target.value)}
-                    label="Frequency"
-                  >
-                    <MenuItem value="monthly">Monthly</MenuItem>
-                    <MenuItem value="quarterly">Quarterly</MenuItem>
-                    <MenuItem value="yearly">Yearly</MenuItem>
-                  </Select>
-                </FormControl>
-              )}
-
-              <TextField
-                fullWidth
-                label="Message (optional)"
-                multiline
-                rows={3}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                placeholder="Share why you're making this donation..."
-                sx={{ mb: 4 }}
-              />
-
-              <Box sx={{ mt: 3 }}>
-                <StripePayment
-                  amount={customAmount ? parseFloat(customAmount) : selectedAmount}
+                  <StripePayment
+                    amount={customAmount ? parseFloat(customAmount) : (selectedAmount || 0)}
                   currency="usd"
                   onSuccess={handleStripeSuccess}
                   onError={handleStripeError}
                   donationData={{
                     programId: selectedProgram,
-                    anonymous: user ? (anonymous || false) : true, // Force anonymous if not logged in
+                    anonymous: user ? (anonymous || false) : true,
                     message: message || '',
                     recurring: {
                       isRecurring: recurring || false,
@@ -655,7 +902,15 @@ export default function Donate() {
                     email: user && user.email ? user.email : ''
                   }}
                 />
-              </Box>
+                </Box>
+              )}
+              {!customAmount && !selectedAmount && (
+                <Alert severity="info" sx={{ mt: 4 }}>
+                  <Typography variant="body2">
+                    Please select or enter a donation amount to proceed with payment
+                  </Typography>
+                </Alert>
+              )}
             </Card>
           </Grid>
         </Grid>

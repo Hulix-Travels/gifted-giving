@@ -362,7 +362,15 @@ router.get('/verify-email', async (req, res) => {
         console.error('Failed to send welcome email after verification:', emailError);
       }
     }
-    res.json({ message: 'Email verified successfully. You can now log in.' });
+    res.json({ 
+      message: 'Email verified successfully. You can now log in.',
+      user: {
+        id: user._id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName
+      }
+    });
   } catch (error) {
     console.error('Email verification error:', error);
     res.status(500).json({ message: 'Server error during email verification' });

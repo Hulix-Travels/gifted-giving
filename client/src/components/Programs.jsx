@@ -60,7 +60,13 @@ export default function Programs() {
     };
   }, []);
 
-  const scrollToSection = (href) => {
+  const scrollToSection = (href, programId = null) => {
+    // Store program ID in sessionStorage if provided
+    if (programId) {
+      sessionStorage.setItem('selectedProgramId', programId);
+      // Dispatch custom event to notify Donate component
+      window.dispatchEvent(new CustomEvent('program-selected', { detail: { programId } }));
+    }
     const element = document.querySelector(href);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
@@ -365,7 +371,7 @@ export default function Programs() {
                     variant="contained" 
                     fullWidth
                     endIcon={<ArrowForward />}
-                    onClick={() => scrollToSection('#donate')}
+                    onClick={() => scrollToSection('#donate', program._id)}
                     sx={{
                       background: program.status === 'upcoming' 
                         ? 'linear-gradient(135deg, #FF9800, #F57C00)' 
@@ -385,7 +391,7 @@ export default function Programs() {
                       }
                     }}
                   >
-                    {program.status === 'upcoming' ? 'Learn More' : `Support ${program.name}`}
+                    {program.status === 'upcoming' ? 'Learn More' : 'Support'}
                   </Button>
                 </CardContent>
               </Card>
