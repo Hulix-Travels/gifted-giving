@@ -62,7 +62,7 @@ router.post('/register', [
 
     // Send email verification email
     try {
-      const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email?token=${verificationToken}`;
+      const verificationUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/verify-email?token=${verificationToken}`;
       await emailService.sendEmailVerificationEmail(user, verificationUrl);
     } catch (emailError) {
       console.error('Failed to send verification email:', emailError);
