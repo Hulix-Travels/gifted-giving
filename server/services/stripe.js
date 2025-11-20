@@ -591,64 +591,26 @@ class StripeService {
   // Cancel a subscription
   static async cancelSubscription(subscriptionId, cancelImmediately = false) {
     try {
-      // First, retrieve the subscription to check its status
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-      
-      // Check if subscription is already canceled
-      if (subscription.status === 'canceled' || subscription.status === 'unpaid') {
-        console.log(`Subscription ${subscriptionId} is already canceled (status: ${subscription.status})`);
-        // Return the existing subscription - it's already canceled
-        return subscription;
-      }
-      
-      // If subscription is already set to cancel at period end and we're not canceling immediately
-      if (subscription.cancel_at_period_end && !cancelImmediately) {
-        console.log(`Subscription ${subscriptionId} is already set to cancel at period end`);
-        return subscription;
-      }
-      
-      // Update subscription to cancel
-      const updatedSubscription = await stripe.subscriptions.update(subscriptionId, {
+      const subscription = await stripe.subscriptions.update(subscriptionId, {
         cancel_at_period_end: !cancelImmediately
       });
       
       // If canceling immediately, also cancel it
       if (cancelImmediately) {
         await stripe.subscriptions.cancel(subscriptionId);
-        // Retrieve the canceled subscription
-        return await stripe.subscriptions.retrieve(subscriptionId);
       }
       
-      return updatedSubscription;
+      return subscription;
     } catch (error) {
-      // Check if error is due to subscription already being canceled
-      if (error.type === 'StripeInvalidRequestError' && 
-          error.message && 
-          error.message.includes('canceled subscription')) {
-        console.log(`Subscription ${subscriptionId} is already canceled`);
-        // Try to retrieve the subscription to return it
-        try {
-          return await stripe.subscriptions.retrieve(subscriptionId);
-        } catch (retrieveError) {
-          throw new Error('Subscription is already canceled and cannot be retrieved');
-        }
-      }
       console.error('Error canceling subscription:', error);
-      throw new Error(`Failed to cancel subscription: ${error.message}`);
+      throw new Error('Failed to cancel subscription');
     }
   }
 
   // Modify subscription (change amount or frequency)
   static async modifySubscription(subscriptionId, newAmount, newFrequency) {
     try {
-      // First, retrieve the subscription to check its status
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-      
-      // Check if subscription is already canceled
-      if (subscription.status === 'canceled' || subscription.status === 'unpaid') {
-        console.log(`Cannot modify subscription ${subscriptionId} - it is already canceled (status: ${subscription.status})`);
-        throw new Error(`Cannot modify subscription: subscription is already canceled (status: ${subscription.status})`);
-      }
       
       // Get current subscription item
       const subscriptionItemId = subscription.items.data[0].id;
@@ -679,7 +641,11 @@ class StripeService {
           id: subscriptionItemId,
           price: newPrice.id
         }],
-        proration_behavior: 'create_prorations', // Prorate the change
+        proration_behavior: 'create_prorations' // Prorate the change
+      });
+      
+      // Update metadata
+      await stripe.subscriptions.update(subscriptionId, {
         metadata: {
           ...subscription.metadata,
           frequency: newFrequency,
@@ -689,64 +655,22 @@ class StripeService {
       
       return updatedSubscription;
     } catch (error) {
-      // Check if error is due to subscription already being canceled
-      if (error.type === 'StripeInvalidRequestError' && 
-          error.message && 
-          error.message.includes('canceled subscription')) {
-        console.log(`Cannot modify subscription ${subscriptionId} - it is already canceled`);
-        throw new Error('Cannot modify subscription: subscription is already canceled');
-      }
-      
-      // If it's our own error (from the status check), re-throw it
-      if (error.message && error.message.includes('Cannot modify subscription')) {
-        throw error;
-      }
-      
       console.error('Error modifying subscription:', error);
-      throw new Error(`Failed to modify subscription: ${error.message}`);
+      throw new Error('Failed to modify subscription');
     }
   }
 
   // Reactivate a canceled subscription
   static async reactivateSubscription(subscriptionId) {
     try {
-      // First, retrieve the subscription to check its status
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-      
-      // Check if subscription is already fully canceled (cannot be reactivated)
-      if (subscription.status === 'canceled' || subscription.status === 'unpaid') {
-        console.log(`Cannot reactivate subscription ${subscriptionId} - it is already canceled (status: ${subscription.status})`);
-        throw new Error(`Cannot reactivate subscription: subscription is already canceled (status: ${subscription.status}). Canceled subscriptions cannot be reactivated.`);
-      }
-      
-      // If subscription is not set to cancel at period end, it's already active
-      if (!subscription.cancel_at_period_end) {
-        console.log(`Subscription ${subscriptionId} is already active`);
-        return subscription;
-      }
-      
-      // Reactivate the subscription
-      const reactivatedSubscription = await stripe.subscriptions.update(subscriptionId, {
+      const subscription = await stripe.subscriptions.update(subscriptionId, {
         cancel_at_period_end: false
       });
       
-      return reactivatedSubscription;
+      return subscription;
     } catch (error) {
-      // Check if error is due to subscription already being canceled
-      if (error.type === 'StripeInvalidRequestError' && 
-          error.message && 
-          error.message.includes('canceled subscription')) {
-        console.log(`Cannot reactivate subscription ${subscriptionId} - it is already canceled`);
-        throw new Error('Cannot reactivate subscription: subscription is already canceled. Canceled subscriptions cannot be reactivated.');
-      }
-      
-      // If it's our own error (from the status check), re-throw it
-      if (error.message && error.message.includes('Cannot reactivate subscription')) {
-        throw error;
-      }
-      
       console.error('Error reactivating subscription:', error);
-      throw new Error(`Failed to reactivate subscription: ${error.message}`);
+      throw new Error('Failed to reactivate subscription');
     }
   }
 

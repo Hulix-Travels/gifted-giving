@@ -57,7 +57,11 @@ export default function UserDashboard() {
 
         try {
           const subscriptionsData = await stripeAPI.getAllSubscriptions();
-          setSubscriptions(subscriptionsData.subscriptions || []);
+          // Filter out canceled subscriptions (safety measure - backend should already filter)
+          const activeSubscriptions = (subscriptionsData.subscriptions || []).filter(
+            sub => sub.subscription && sub.subscription.status !== 'canceled'
+          );
+          setSubscriptions(activeSubscriptions);
         } catch (subscriptionsErr) {
           // Silently fail - subscriptions are optional, route might not exist yet
           console.warn('Subscriptions not available:', subscriptionsErr.message);
@@ -163,7 +167,11 @@ export default function UserDashboard() {
       setSelectedSubscription(null);
       // Refresh subscriptions
       const subscriptionsData = await stripeAPI.getAllSubscriptions();
-      setSubscriptions(subscriptionsData.subscriptions || []);
+      // Filter out canceled subscriptions
+      const activeSubscriptions = (subscriptionsData.subscriptions || []).filter(
+        sub => sub.subscription && sub.subscription.status !== 'canceled'
+      );
+      setSubscriptions(activeSubscriptions);
     } catch (error) {
       setSnackbar({
         open: true,
@@ -188,7 +196,11 @@ export default function UserDashboard() {
       setSelectedSubscription(null);
       // Refresh subscriptions
       const subscriptionsData = await stripeAPI.getAllSubscriptions();
-      setSubscriptions(subscriptionsData.subscriptions || []);
+      // Filter out canceled subscriptions
+      const activeSubscriptions = (subscriptionsData.subscriptions || []).filter(
+        sub => sub.subscription && sub.subscription.status !== 'canceled'
+      );
+      setSubscriptions(activeSubscriptions);
     } catch (error) {
       setSnackbar({
         open: true,
@@ -211,7 +223,11 @@ export default function UserDashboard() {
       });
       // Refresh subscriptions
       const subscriptionsData = await stripeAPI.getAllSubscriptions();
-      setSubscriptions(subscriptionsData.subscriptions || []);
+      // Filter out canceled subscriptions
+      const activeSubscriptions = (subscriptionsData.subscriptions || []).filter(
+        sub => sub.subscription && sub.subscription.status !== 'canceled'
+      );
+      setSubscriptions(activeSubscriptions);
     } catch (error) {
       setSnackbar({
         open: true,

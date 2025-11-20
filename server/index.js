@@ -10,6 +10,10 @@ require('dotenv').config({ path: './config.env' });
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Trust proxy - required when behind a reverse proxy (e.g., Render, Heroku, AWS ELB)
+// This allows express-rate-limit to correctly identify client IPs from X-Forwarded-For headers
+app.set('trust proxy', true);
+
 // Import routes
 const authRoutes = require('./routes/auth');
 const donationRoutes = require('./routes/donations');

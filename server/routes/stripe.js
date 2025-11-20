@@ -587,7 +587,20 @@ router.get('/subscriptions', auth, async (req, res) => {
       })
     );
     
-    res.json({ subscriptions });
+    // Filter out canceled subscriptions and subscriptions that failed to fetch
+    const activeSubscriptions = subscriptions.filter(sub => {
+      // Exclude if subscription is null (failed to fetch)
+      if (!sub.subscription) {
+        return false;
+      }
+      // Exclude canceled subscriptions
+      if (sub.subscription.status === 'canceled') {
+        return false;
+      }
+      return true;
+    });
+    
+    res.json({ subscriptions: activeSubscriptions });
   } catch (error) {
     console.error('Get subscriptions error:', error);
     res.status(500).json({ message: 'Failed to retrieve subscriptions' });
@@ -625,24 +638,6 @@ router.post('/subscription/:subscriptionId/cancel', [
     
     const subscription = await StripeService.cancelSubscription(subscriptionId, cancelImmediately);
     
-    // Check if subscription was already canceled
-    if (subscription.status === 'canceled') {
-      // Update donation record if not already updated
-      if (!donation.recurring.endDate) {
-        donation.recurring.endDate = new Date();
-        await donation.save();
-      }
-      
-      return res.json({
-        message: 'Subscription is already canceled',
-        subscription: {
-          id: subscription.id,
-          status: subscription.status,
-          cancel_at_period_end: subscription.cancel_at_period_end
-        }
-      });
-    }
-    
     // Update donation record
     if (cancelImmediately) {
       donation.recurring.endDate = new Date();
@@ -659,17 +654,7 @@ router.post('/subscription/:subscriptionId/cancel', [
     });
   } catch (error) {
     console.error('Cancel subscription error:', error);
-    // Check if it's an already-canceled error
-    if (error.message && error.message.includes('already canceled')) {
-      return res.status(400).json({ 
-        message: 'Subscription is already canceled',
-        error: error.message 
-      });
-    }
-    res.status(500).json({ 
-      message: 'Failed to cancel subscription',
-      error: error.message 
-    });
+    res.status(500).json({ message: 'Failed to cancel subscription' });
   }
 });
 
@@ -736,17 +721,7 @@ router.post('/subscription/:subscriptionId/modify', [
     });
   } catch (error) {
     console.error('Modify subscription error:', error);
-    // Check if it's an already-canceled error
-    if (error.message && error.message.includes('already canceled')) {
-      return res.status(400).json({ 
-        message: 'Cannot modify subscription: subscription is already canceled',
-        error: error.message 
-      });
-    }
-    res.status(500).json({ 
-      message: 'Failed to modify subscription',
-      error: error.message 
-    });
+    res.status(500).json({ message: 'Failed to modify subscription' });
   }
 });
 
@@ -769,18 +744,6 @@ router.post('/subscription/:subscriptionId/reactivate', auth, async (req, res) =
     
     const subscription = await StripeService.reactivateSubscription(subscriptionId);
     
-    // Check if subscription was already active
-    if (!subscription.cancel_at_period_end && !donation.recurring.endDate) {
-      return res.json({
-        message: 'Subscription is already active',
-        subscription: {
-          id: subscription.id,
-          status: subscription.status,
-          cancel_at_period_end: subscription.cancel_at_period_end
-        }
-      });
-    }
-    
     // Update donation record
     donation.recurring.endDate = null;
     await donation.save();
@@ -795,17 +758,7 @@ router.post('/subscription/:subscriptionId/reactivate', auth, async (req, res) =
     });
   } catch (error) {
     console.error('Reactivate subscription error:', error);
-    // Check if it's an already-canceled error
-    if (error.message && error.message.includes('already canceled')) {
-      return res.status(400).json({ 
-        message: 'Cannot reactivate subscription: subscription is already canceled',
-        error: error.message 
-      });
-    }
-    res.status(500).json({ 
-      message: 'Failed to reactivate subscription',
-      error: error.message 
-    });
+    res.status(500).json({ message: 'Failed to reactivate subscription' });
   }
 });
 
