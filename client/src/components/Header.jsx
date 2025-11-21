@@ -216,13 +216,32 @@ export default function Header() {
                     {isAuthenticated ? (
                       <>
                         <ListItem disablePadding>
-                          <ListItemButton component={Link} to="/dashboard" onClick={handleClose}>
+                          <ListItemButton component={Link} to="/dashboard" onClick={handleDrawerToggle}>
+                            <ListItemIcon sx={{ minWidth: 40, color: 'var(--primary-green)' }}>
+                              <AccountCircle />
+                            </ListItemIcon>
                             <ListItemText 
                               primary="My Dashboard" 
                               sx={{ fontWeight: 600 }}
                             />
                           </ListItemButton>
                         </ListItem>
+                        {user?.role === 'admin' && (
+                          <ListItem disablePadding>
+                            <ListItemButton component={Link} to="/admin" onClick={handleDrawerToggle}>
+                              <ListItemIcon sx={{ minWidth: 40, color: '#ff9800' }}>
+                                <AdminPanelSettings />
+                              </ListItemIcon>
+                              <ListItemText 
+                                primary="Admin Dashboard" 
+                                sx={{ 
+                                  fontWeight: 600,
+                                  color: '#ff9800'
+                                }}
+                              />
+                            </ListItemButton>
+                          </ListItem>
+                        )}
                         <ListItem disablePadding>
                           <ListItemButton onClick={handleLogout}>
                             <ListItemText 

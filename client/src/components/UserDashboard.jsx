@@ -558,11 +558,47 @@ export default function UserDashboard() {
                   color: '#2c3e50',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 1
+                  gap: 1,
+                  mb: 2
                 }}>
                   <Timeline sx={{ color: '#7f8c8d' }} />
                   Donation History
                 </Typography>
+                {/* Recurring Donations Summary */}
+                {(() => {
+                  const recurringDonations = donations.filter(d => d.recurring?.isRecurring);
+                  const recurringTotal = recurringDonations.reduce((sum, d) => sum + d.amount, 0);
+                  if (recurringDonations.length > 0) {
+                    return (
+                      <Paper sx={{ 
+                        p: 2, 
+                        mb: 3, 
+                        background: 'linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%)',
+                        border: '1px solid #bbdefb',
+                        borderRadius: 2
+                      }}>
+                        <Box display="flex" alignItems="center" gap={1} mb={1}>
+                          <Autorenew sx={{ color: '#1976d2', fontSize: 20 }} />
+                          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#1976d2' }}>
+                            Recurring Donations Summary
+                          </Typography>
+                        </Box>
+                        <Box display="flex" gap={3} flexWrap="wrap">
+                          <Typography variant="body2" sx={{ color: '#424242' }}>
+                            <strong>{recurringDonations.length}</strong> recurring payment{recurringDonations.length !== 1 ? 's' : ''} recorded
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#424242' }}>
+                            <strong>${recurringTotal.toFixed(2)}</strong> total from recurring donations
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: '#424242' }}>
+                            <strong>{subscriptions.length}</strong> active subscription{subscriptions.length !== 1 ? 's' : ''}
+                          </Typography>
+                        </Box>
+                      </Paper>
+                    );
+                  }
+                  return null;
+                })()}
               </Box>
               
               {donations.length === 0 ? (
@@ -611,39 +647,81 @@ export default function UserDashboard() {
                             <AttachMoney sx={{ fontSize: 24, color: '#388e3c' }} />
                           </Box>
                           <Box>
-                            <Typography variant="h6" sx={{ 
-                              color: '#2c3e50', 
-                              fontWeight: 700,
-                              mb: 0.5
-                            }}>
-                              ${donation.amount}
-                            </Typography>
+                            <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                              <Typography variant="h6" sx={{ 
+                                color: '#2c3e50', 
+                                fontWeight: 700
+                              }}>
+                                ${donation.amount}
+                              </Typography>
+                              {donation.recurring?.isRecurring && (
+                                <Chip 
+                                  icon={<Autorenew sx={{ fontSize: 14 }} />}
+                                  label="Recurring"
+                                  size="small"
+                                  sx={{ 
+                                    bgcolor: '#e3f2fd',
+                                    color: '#1976d2',
+                                    fontWeight: 600,
+                                    height: 20,
+                                    fontSize: '0.7rem'
+                                  }}
+                                />
+                              )}
+                            </Box>
                             <Typography variant="body1" sx={{ 
                               color: '#7f8c8d',
                               fontWeight: 500
                             }}>
                               to {donation.program?.name || 'General Fund'}
                             </Typography>
-                            <Box display="flex" alignItems="center" gap={1} mt={1}>
-                              <CalendarToday sx={{ fontSize: 16, color: '#95a5a6' }} />
-                              <Typography variant="body2" sx={{ color: '#95a5a6' }}>
-                                {new Date(donation.createdAt).toLocaleDateString('en-US', {
-                                  year: 'numeric',
-                                  month: 'long',
-                                  day: 'numeric'
-                                })}
-                              </Typography>
+                            <Box display="flex" alignItems="center" gap={1} mt={1} flexWrap="wrap">
+                              <Box display="flex" alignItems="center" gap={0.5}>
+                                <CalendarToday sx={{ fontSize: 16, color: '#95a5a6' }} />
+                                <Typography variant="body2" sx={{ color: '#95a5a6' }}>
+                                  {new Date(donation.createdAt).toLocaleDateString('en-US', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric'
+                                  })}
+                                </Typography>
+                              </Box>
+                              {donation.recurring?.isRecurring && (
+                                <Chip 
+                                  label={
+                                    donation.recurring?.originalDonationId 
+                                      ? `Payment #${donation.recurring?.totalPayments || 1}` 
+                                      : `Payment #1 (Initial)`
+                                  }
+                                  size="small"
+                                  sx={{ 
+                                    bgcolor: '#fff3e0',
+                                    color: '#f57c00',
+                                    fontSize: '0.7rem',
+                                    height: 20
+                                  }}
+                                />
+                              )}
                             </Box>
                           </Box>
                         </Box>
-                        <Chip 
-                          label={donation.paymentStatus || 'Completed'} 
-                          sx={{ 
-                            background: '#e8f5e8',
-                            color: '#388e3c',
-                            fontWeight: 'bold'
-                          }}
-                        />
+                        <Box display="flex" flexDirection="column" alignItems="flex-end" gap={1}>
+                          <Chip 
+                            label={donation.paymentStatus || 'Completed'} 
+                            sx={{ 
+                              background: donation.paymentStatus === 'completed' ? '#e8f5e8' : 
+                                         donation.paymentStatus === 'pending' ? '#fff3e0' : '#ffebee',
+                              color: donation.paymentStatus === 'completed' ? '#388e3c' : 
+                                     donation.paymentStatus === 'pending' ? '#f57c00' : '#c62828',
+                              fontWeight: 'bold'
+                            }}
+                          />
+                          {donation.recurring?.isRecurring && donation.recurring?.frequency && (
+                            <Typography variant="caption" sx={{ color: '#95a5a6', fontSize: '0.7rem' }}>
+                              {donation.recurring.frequency.charAt(0).toUpperCase() + donation.recurring.frequency.slice(1)}
+                            </Typography>
+                          )}
+                        </Box>
                       </Box>
                     </Paper>
                   ))}

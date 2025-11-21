@@ -422,6 +422,20 @@ class StripeService {
       
       console.log(`✅ Found original donation: ${originalDonation._id}`);
       
+      // Check if this payment has already been processed (prevent duplicate records)
+      const existingDonation = await Donation.findOne({ 
+        stripePaymentIntentId: invoice.payment_intent 
+      });
+      if (existingDonation) {
+        console.log(`⚠️ Payment already processed for invoice ${invoice.id}, skipping duplicate record`);
+        return { 
+          status: 'success', 
+          subscription: invoice.subscription,
+          donation: existingDonation,
+          message: 'Payment already recorded'
+        };
+      }
+      
       // Check if this is the first payment (original donation status is pending)
       const isFirstPayment = originalDonation.paymentStatus === 'pending';
       
