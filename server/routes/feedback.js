@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const Feedback = require('../models/Feedback');
+const { adminAuth } = require('../middleware/auth');
+const { parsePagination } = require('../utils/pagination');
 
-// POST /api/feedback
+// POST /api/feedback — public submission
 router.post('/', async (req, res) => {
   try {
     const { name, email, feedback } = req.body;
@@ -17,12 +19,10 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET /api/feedback - list all feedback with pagination
-router.get('/', async (req, res) => {
+// GET /api/feedback — admin only
+router.get('/', adminAuth, async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
+    const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 10 });
     const total = await Feedback.countDocuments();
     const feedback = await Feedback.find()
       .sort({ createdAt: -1 })
@@ -39,8 +39,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// PATCH /api/feedback/:id - update feedback status
-router.patch('/:id', async (req, res) => {
+// PATCH /api/feedback/:id — admin only
+router.patch('/:id', adminAuth, async (req, res) => {
   try {
     const { status } = req.body;
     if (!['unread', 'read', 'addressed'].includes(status)) {
@@ -54,4 +54,4 @@ router.patch('/:id', async (req, res) => {
   }
 });
 
-module.exports = router; 
+module.exports = router;

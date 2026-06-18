@@ -2,6 +2,16 @@ const express = require('express');
 const router = express.Router();
 const NewsletterSubscription = require('../models/NewsletterSubscription');
 const emailService = require('../services/emailService');
+const { adminAuth } = require('../middleware/auth');
+const { parsePagination } = require('../utils/pagination');
+
+const SUBSCRIBE_RESPONSE = {
+  message: 'Thank you! If this email is eligible, you will receive our newsletter.'
+};
+
+const UNSUBSCRIBE_RESPONSE = {
+  message: 'If this email was on our list, it has been removed from future mailings.'
+};
 
 // @route   POST /api/newsletter/subscribe
 // @desc    Subscribe to newsletter
@@ -19,14 +29,20 @@ router.post('/subscribe', async (req, res) => {
     
     if (existingSubscription) {
       if (existingSubscription.isActive) {
-        return res.status(400).json({ message: 'You are already subscribed to our newsletter' });
-      } else {
-        // Reactivate subscription
-        existingSubscription.isActive = true;
-        existingSubscription.subscribedAt = new Date();
-        await existingSubscription.save();
-        return res.json({ message: 'Welcome back! Your newsletter subscription has been reactivated' });
+        return res.json(SUBSCRIBE_RESPONSE);
       }
+
+      existingSubscription.isActive = true;
+      existingSubscription.subscribedAt = new Date();
+      await existingSubscription.save();
+
+      try {
+        await emailService.sendNewsletterWelcomeEmail(email);
+      } catch (emailError) {
+        console.error('Failed to send welcome email:', emailError);
+      }
+
+      return res.json(SUBSCRIBE_RESPONSE);
     }
 
     // Create new subscription
@@ -44,12 +60,12 @@ router.post('/subscribe', async (req, res) => {
       // Don't fail the subscription if email fails
     }
 
-    res.status(201).json({ message: 'Successfully subscribed to our newsletter!' });
+    res.status(201).json(SUBSCRIBE_RESPONSE);
   } catch (error) {
     console.error('Newsletter subscription error:', error);
-    
+
     if (error.code === 11000) {
-      return res.status(400).json({ message: 'This email is already subscribed' });
+      return res.json(SUBSCRIBE_RESPONSE);
     }
     
     if (error.name === 'ValidationError') {
@@ -72,19 +88,15 @@ router.post('/unsubscribe', async (req, res) => {
     }
 
     const subscription = await NewsletterSubscription.findOne({ email: email.toLowerCase() });
-    
-    if (!subscription) {
-      return res.status(404).json({ message: 'Email not found in our subscription list' });
-    }
 
-    if (!subscription.isActive) {
-      return res.status(400).json({ message: 'You are already unsubscribed' });
+    if (!subscription || !subscription.isActive) {
+      return res.json(UNSUBSCRIBE_RESPONSE);
     }
 
     subscription.isActive = false;
     await subscription.save();
 
-    res.json({ message: 'Successfully unsubscribed from our newsletter' });
+    res.json(UNSUBSCRIBE_RESPONSE);
   } catch (error) {
     console.error('Newsletter unsubscribe error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -93,15 +105,15 @@ router.post('/unsubscribe', async (req, res) => {
 
 // @route   GET /api/newsletter/subscribers
 // @desc    Get all active subscribers (admin only)
-// @access  Private
-router.get('/subscribers', async (req, res) => {
+// @access  Private (Admin only)
+router.get('/subscribers', adminAuth, async (req, res) => {
   try {
-    const { page = 1, limit = 50 } = req.query;
+    const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 50 });
     
     const subscribers = await NewsletterSubscription.find({ isActive: true })
       .sort({ subscribedAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
+      .limit(limit)
+      .skip(skip)
       .select('-__v')
       .exec();
 
@@ -121,8 +133,8 @@ router.get('/subscribers', async (req, res) => {
 
 // @route   GET /api/newsletter/stats
 // @desc    Get newsletter statistics (admin only)
-// @access  Private
-router.get('/stats', async (req, res) => {
+// @access  Private (Admin only)
+router.get('/stats', adminAuth, async (req, res) => {
   try {
     const totalSubscribers = await NewsletterSubscription.countDocuments({ isActive: true });
     const totalUnsubscribed = await NewsletterSubscription.countDocuments({ isActive: false });
@@ -145,8 +157,8 @@ router.get('/stats', async (req, res) => {
 
 // @route   POST /api/newsletter/send
 // @desc    Send newsletter to all active subscribers (admin only)
-// @access  Private
-router.post('/send', async (req, res) => {
+// @access  Private (Admin only)
+router.post('/send', adminAuth, async (req, res) => {
   try {
     const { subject, content } = req.body;
 

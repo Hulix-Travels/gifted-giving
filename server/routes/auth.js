@@ -4,15 +4,12 @@ const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
 const emailService = require('../services/emailService');
+const { getJwtSecret } = require('../utils/jwtSecret');
+const { PASSWORD_RULES } = require('../utils/passwordValidation');
+const { generateAccessToken } = require('../utils/jwtTokens');
+const { buildClientUrl } = require('../utils/clientUrls');
 const crypto = require('crypto');
 const router = express.Router();
-
-// Generate JWT Token
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET || 'your-secret-key', {
-    expiresIn: '7d'
-  });
-};
 
 // @route   POST /api/auth/register
 // @desc    Register a new user
@@ -21,7 +18,7 @@ router.post('/register', [
   body('firstName').trim().isLength({ min: 2, max: 50 }).withMessage('First name must be between 2 and 50 characters'),
   body('lastName').trim().isLength({ min: 2, max: 50 }).withMessage('Last name must be between 2 and 50 characters'),
   body('email').isEmail().normalizeEmail().withMessage('Please enter a valid email'),
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
+  PASSWORD_RULES,
   body('phone').optional().isMobilePhone().withMessage('Please enter a valid phone number')
 ], async (req, res) => {
   try {
@@ -34,7 +31,7 @@ router.post('/register', [
       });
     }
 
-    const { firstName, lastName, email, password, phone, role } = req.body;
+    const { firstName, lastName, email, password, phone } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -42,14 +39,14 @@ router.post('/register', [
       return res.status(400).json({ message: 'User with this email already exists' });
     }
 
-    // Create new user
+    // Role is always 'donor' on self-registration — never trust client-supplied role
     const user = new User({
       firstName,
       lastName,
       email,
       password,
       phone,
-      role: role || 'donor',
+      role: 'donor',
       isEmailVerified: false
     });
 
@@ -62,7 +59,7 @@ router.post('/register', [
 
     // Send email verification email
     try {
-      const verificationUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/verify-email?token=${verificationToken}`;
+      const verificationUrl = buildClientUrl('/verify-email', verificationToken);
       await emailService.sendEmailVerificationEmail(user, verificationUrl);
     } catch (emailError) {
       console.error('Failed to send verification email:', emailError);
@@ -132,7 +129,7 @@ router.post('/login', [
     }
 
     // Generate token
-    const token = generateToken(user._id);
+    const token = generateAccessToken(user);
 
     res.json({
       message: 'Login successful',
@@ -260,16 +257,17 @@ router.post('/forgot-password', [
     }
 
     const { email } = req.body;
+    const genericMessage =
+      'If an account with that email exists, a password reset link has been sent.';
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({ message: 'User with this email not found' });
+      return res.json({ message: genericMessage });
     }
 
-    // Generate reset token
     const resetToken = jwt.sign(
       { userId: user._id },
-      process.env.JWT_SECRET || 'your-secret-key',
+      getJwtSecret(),
       { expiresIn: '1h' }
     );
 
@@ -277,9 +275,14 @@ router.post('/forgot-password', [
     user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
     await user.save();
 
-    // TODO: Send email with reset link
-    // For now, just return success
-    res.json({ message: 'Password reset email sent successfully' });
+    try {
+      await emailService.sendPasswordResetEmail(user.email, resetToken);
+    } catch (emailError) {
+      console.error('Failed to send password reset email:', emailError);
+      // Do not reveal whether the account exists
+    }
+
+    res.json({ message: genericMessage });
 
   } catch (error) {
     console.error('Forgot password error:', error);
@@ -292,7 +295,7 @@ router.post('/forgot-password', [
 // @access  Public
 router.post('/reset-password', [
   body('token').notEmpty().withMessage('Reset token is required'),
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long')
+  PASSWORD_RULES
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -306,7 +309,7 @@ router.post('/reset-password', [
     const { token, password } = req.body;
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    const decoded = jwt.verify(token, getJwtSecret());
     
     const user = await User.findOne({
       _id: decoded.userId,
@@ -322,6 +325,7 @@ router.post('/reset-password', [
     user.password = password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
 
     res.json({ message: 'Password reset successfully' });
@@ -335,12 +339,12 @@ router.post('/reset-password', [
   }
 });
 
-// Add email verification route
-router.get('/verify-email', async (req, res) => {
-  const { token } = req.query;
+// Add email verification route (POST only — token stays out of server access logs)
+async function handleEmailVerification(token, res) {
   if (!token) {
     return res.status(400).json({ message: 'Verification token is required' });
   }
+
   try {
     const user = await User.findOne({
       emailVerificationToken: token,
@@ -354,7 +358,6 @@ router.get('/verify-email', async (req, res) => {
     user.emailVerificationToken = undefined;
     user.emailVerificationExpires = undefined;
     await user.save();
-    // Send welcome email only if not previously verified
     if (!wasVerified) {
       try {
         await emailService.sendWelcomeEmail(user);
@@ -362,7 +365,7 @@ router.get('/verify-email', async (req, res) => {
         console.error('Failed to send welcome email after verification:', emailError);
       }
     }
-    res.json({ 
+    return res.json({
       message: 'Email verified successfully. You can now log in.',
       user: {
         id: user._id,
@@ -373,8 +376,18 @@ router.get('/verify-email', async (req, res) => {
     });
   } catch (error) {
     console.error('Email verification error:', error);
-    res.status(500).json({ message: 'Server error during email verification' });
+    return res.status(500).json({ message: 'Server error during email verification' });
   }
+}
+
+router.post('/verify-email', async (req, res) => {
+  await handleEmailVerification(req.body?.token, res);
+});
+
+router.get('/verify-email', (_req, res) => {
+  res.status(405).json({
+    message: 'Email verification must use POST with { "token": "..." } in the request body.'
+  });
 });
 
 module.exports = router; 

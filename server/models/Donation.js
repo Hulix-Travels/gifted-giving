@@ -142,8 +142,13 @@ donationSchema.virtual('formattedAmount').get(function() {
   }).format(this.amount);
 });
 
-// Pre-save middleware to update user stats
+// Pre-save: track prior status and handle new completed donations
 donationSchema.pre('save', async function(next) {
+  if (!this.isNew) {
+    const existing = await this.constructor.findById(this._id).select('paymentStatus').lean();
+    this._priorPaymentStatus = existing?.paymentStatus;
+  }
+
   if (this.isNew && this.paymentStatus === 'completed') {
     try {
       const User = mongoose.model('User');
@@ -191,76 +196,71 @@ donationSchema.pre('save', async function(next) {
   next();
 });
 
-// Post-save middleware to handle status updates
+// Post-save: handle status transitions (pending → completed, etc.)
 donationSchema.post('save', async function(doc) {
-  // Only handle status changes for existing documents
-  if (!this.isNew && this.isModified('paymentStatus')) {
-    try {
-      const User = mongoose.model('User');
-      const Program = mongoose.model('Program');
-      
-      // If status changed to completed, update stats
-      if (doc.paymentStatus === 'completed') {
-        // Update user donation stats only if donor exists (not anonymous)
-        if (doc.donor) {
-          await User.findByIdAndUpdate(doc.donor, {
-            $inc: { 
-              totalDonated: doc.amount,
-              donationCount: 1
-            },
-            lastDonationDate: new Date()
-          });
-        }
-        
-        // Update program current amount
-        await Program.findByIdAndUpdate(doc.program, {
-          $inc: { currentAmount: doc.amount }
-        });
+  if (this.isNew || this._priorPaymentStatus === undefined) {
+    return;
+  }
 
-        // Update program impact metrics based on impactPerDollar
-        const programDoc = await Program.findById(doc.program);
-        if (programDoc && programDoc.impactPerDollar) {
-          const impact = programDoc.impactPerDollar;
-          const children = Math.floor(doc.amount * (impact.children || 0));
-          const communities = Math.floor(doc.amount * (impact.communities || 0));
-          const schools = Math.floor(doc.amount * (impact.schools || 0));
-          const meals = Math.floor(doc.amount * (impact.meals || 0));
-          const checkups = Math.floor(doc.amount * (impact.checkups || 0));
-          await Program.findByIdAndUpdate(doc.program, {
-            $inc: {
-              'impactMetrics.childrenHelped': children,
-              'impactMetrics.communitiesReached': communities,
-              'impactMetrics.schoolsBuilt': schools,
-              'impactMetrics.mealsProvided': meals,
-              'impactMetrics.medicalCheckups': checkups
-            }
-          });
-        }
-        
-        console.log(`✅ Updated program current amount for donation ${doc._id}`);
-      }
-      // If status changed from completed to something else, reverse the stats
-      else if (this._original && this._original.paymentStatus === 'completed') {
-        // Reverse user donation stats only if donor exists (not anonymous)
-        if (doc.donor) {
-          await User.findByIdAndUpdate(doc.donor, {
-            $inc: { 
-              totalDonated: -doc.amount,
-              donationCount: -1
-            }
-          });
-        }
-        
-        // Reverse program current amount
-        await Program.findByIdAndUpdate(doc.program, {
-          $inc: { currentAmount: -doc.amount }
+  const prior = this._priorPaymentStatus;
+  const current = doc.paymentStatus;
+
+  if (prior === current) {
+    return;
+  }
+
+  try {
+    const User = mongoose.model('User');
+    const Program = mongoose.model('Program');
+
+    if (prior !== 'completed' && current === 'completed') {
+      if (doc.donor) {
+        await User.findByIdAndUpdate(doc.donor, {
+          $inc: {
+            totalDonated: doc.amount,
+            donationCount: 1
+          },
+          lastDonationDate: new Date()
         });
-        
-        console.log(`🔄 Reversed program current amount for donation ${doc._id}`);
       }
-    } catch (error) {
-      console.error('Error updating stats in post-save:', error);
+
+      await Program.findByIdAndUpdate(doc.program, {
+        $inc: { currentAmount: doc.amount }
+      });
+
+      const programDoc = await Program.findById(doc.program);
+      if (programDoc?.impactPerDollar) {
+        const impact = programDoc.impactPerDollar;
+        await Program.findByIdAndUpdate(doc.program, {
+          $inc: {
+            'impactMetrics.childrenHelped': Math.floor(doc.amount * (impact.children || 0)),
+            'impactMetrics.communitiesReached': Math.floor(doc.amount * (impact.communities || 0)),
+            'impactMetrics.schoolsBuilt': Math.floor(doc.amount * (impact.schools || 0)),
+            'impactMetrics.mealsProvided': Math.floor(doc.amount * (impact.meals || 0)),
+            'impactMetrics.medicalCheckups': Math.floor(doc.amount * (impact.checkups || 0))
+          }
+        });
+      }
+
+      console.log(`✅ Donation ${doc._id} marked completed — stats updated`);
+    } else if (prior === 'completed' && current !== 'completed') {
+      if (doc.donor) {
+        await User.findByIdAndUpdate(doc.donor, {
+          $inc: {
+            totalDonated: -doc.amount,
+            donationCount: -1
+          }
+        });
+      }
+
+      await Program.findByIdAndUpdate(doc.program, {
+        $inc: { currentAmount: -doc.amount }
+      });
+
+      console.log(`🔄 Donation ${doc._id} reverted from completed — stats reversed`);
     }
+  } catch (error) {
+    console.error('Error updating stats in post-save:', error);
   }
 });
 

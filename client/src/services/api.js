@@ -1,8 +1,7 @@
 import { AUTH_STORAGE_KEY } from '../constants/auth';
+import { API_BASE_URL } from '../config/api';
 
-// Use environment variable or default to localhost for development
-const API_BASE_URL = import.meta.env.VITE_API_URL || 
-  (import.meta.env.DEV ? 'http://localhost:5000/api' : 'https://gifted-givings.onrender.com/api');
+const SESSION_EXPIRED_MESSAGE = 'Session expired. Please log in again.';
 
 // Debug log in development
 if (import.meta.env.DEV) {
@@ -38,11 +37,18 @@ const apiRequest = async (endpoint, options = {}) => {
     const data = await response.json();
 
     if (!response.ok) {
-      // Create a more detailed error object
       const error = new Error(data.message || 'Something went wrong');
       error.status = response.status;
-      error.errors = data.errors; // Include validation errors if present
-      error.responseData = data; // Include full response data for debugging
+      error.errors = data.errors;
+      error.responseData = data;
+
+      if (
+        response.status === 401 &&
+        (data.message === SESSION_EXPIRED_MESSAGE || data.message === 'Token is not valid')
+      ) {
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+      }
+
       throw error;
     }
 
@@ -78,7 +84,10 @@ export const authAPI = {
     body: JSON.stringify({ token, password }),
   }),
   
-  verifyEmail: (token) => apiRequest(`/auth/verify-email?token=${encodeURIComponent(token)}`),
+  verifyEmail: (token) => apiRequest('/auth/verify-email', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  }),
 };
 
 // Programs API
@@ -183,6 +192,8 @@ export const volunteersAPI = {
   }),
   
   getStats: () => apiRequest('/volunteers/stats'),
+
+  getPublicSummary: () => apiRequest('/volunteers/stats/summary'),
 };
 
 // Users API
@@ -266,7 +277,7 @@ export const successStoriesAPI = {
   }),
   
   update: (id, storyData) => apiRequest(`/success-stories/${id}`, {
-    method: 'PUT',
+    method: 'PATCH',
     body: JSON.stringify(storyData),
   }),
   
@@ -281,6 +292,9 @@ export const successStoriesAPI = {
   
   getStats: () => apiRequest('/success-stories/stats'),
 };
+
+export { API_BASE_URL } from '../config/api';
+export { getUploadUrl } from '../config/api';
 
 export default {
   auth: authAPI,

@@ -3,6 +3,7 @@ const { body, validationResult } = require('express-validator');
 const StripeService = require('../services/stripe');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const Donation = require('../models/Donation');
+const validateDonationProgram = require('../utils/validateDonationProgram');
 const { auth, optionalAuth } = require('../middleware/auth');
 const router = express.Router();
 
@@ -48,6 +49,8 @@ router.post('/create-payment-intent', [
       message,
       recurring = { isRecurring: false, frequency: 'monthly' }
     } = req.body;
+
+    await validateDonationProgram(programId);
 
     console.log('Processing payment for amount:', amount, currency);
     console.log('Recurring donation:', recurring.isRecurring, 'Frequency:', recurring.frequency);
@@ -237,6 +240,9 @@ router.post('/create-payment-intent', [
     }
 
   } catch (error) {
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
     console.error('Create payment intent error:', error);
     console.error('Error stack:', error.stack);
     
@@ -394,30 +400,32 @@ router.post('/create-subscription', [
 });
 
 // @route   GET /api/stripe/webhook-test
-// @desc    Test webhook endpoint accessibility
-// @access  Public
+// @desc    Test webhook endpoint accessibility (disabled in production)
+// @access  Development only
 router.get('/webhook-test', (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ message: 'Route not found' });
+  }
   console.log('🧪 Webhook test endpoint accessed');
-  res.json({ 
+  res.json({
     message: 'Webhook endpoint is accessible',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
-    webhookSecretConfigured: !!process.env.STRIPE_WEBHOOK_SECRET
+    environment: process.env.NODE_ENV
   });
 });
 
 // @route   POST /api/stripe/webhook-test
-// @desc    Test webhook processing
-// @access  Public
-// Note: Raw body parsing is handled in index.js for webhook routes
+// @desc    Test webhook processing (disabled in production)
+// @access  Development only
 router.post('/webhook-test', (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ message: 'Route not found' });
+  }
   console.log('🧪 Webhook test POST received');
-  console.log('Headers:', req.headers);
-  console.log('Body length:', req.body.length);
-  res.json({ 
+  res.json({
     message: 'Webhook test POST received successfully',
     timestamp: new Date().toISOString(),
-    bodyLength: req.body.length
+    bodyLength: req.body?.length ?? 0
   });
 });
 

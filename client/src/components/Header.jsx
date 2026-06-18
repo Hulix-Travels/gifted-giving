@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
-import { Menu as MenuIcon, AccountCircle, ExpandMore, Home, Info, VolunteerActivism, Article, AdminPanelSettings } from '@mui/icons-material';
+import { Menu as MenuIcon, AccountCircle, Home, Info, VolunteerActivism, Article, AdminPanelSettings } from '@mui/icons-material';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import Drawer from '@mui/material/Drawer';
 import List from '@mui/material/List';
@@ -24,7 +24,7 @@ const navLinks = [
   { label: 'About', href: '#about', icon: Info },
   { label: 'Programs', href: '#programs', icon: Home },
   { label: 'Stories', href: '#stories', icon: Article },
-  { label: 'Volunteer', href: '#volunteer', icon: VolunteerActivism },
+  { label: 'Volunteer', path: '/volunteer', icon: VolunteerActivism },
 ];
 
 export default function Header() {
@@ -33,7 +33,6 @@ export default function Header() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
-  const [navMenuAnchor, setNavMenuAnchor] = useState(null);
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [initialLoginEmail, setInitialLoginEmail] = useState('');
@@ -59,18 +58,19 @@ export default function Header() {
     setAnchorEl(null);
   };
 
-  const handleNavMenuOpen = (event) => {
-    setNavMenuAnchor(event.currentTarget);
-  };
-
-  const handleNavMenuClose = () => {
-    setNavMenuAnchor(null);
-  };
-
   const handleLogout = () => {
     logout();
     handleClose();
     navigate('/');
+  };
+
+  const goHome = () => {
+    if (window.location.pathname === '/') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      navigate('/');
+    }
+    setDrawerOpen(false);
   };
 
   const _handleProfile = () => {
@@ -90,6 +90,15 @@ export default function Header() {
       navigate(`/${href}`);
     }
     setDrawerOpen(false);
+  };
+
+  const handleNavClick = (item) => {
+    if (item.path) {
+      navigate(item.path);
+      setDrawerOpen(false);
+      return;
+    }
+    scrollToSection(item.href);
   };
 
   return (
@@ -118,10 +127,16 @@ export default function Header() {
               display="flex" 
               alignItems="center" 
               gap={0.5}
+              onClick={goHome}
+              role="button"
+              tabIndex={0}
+              aria-label="Gifted givings home"
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') goHome(); }}
               sx={{
                 height: { xs: '70px', sm: '80px', md: '90px' }, 
                 overflow: 'visible',
-                position: 'relative'
+                position: 'relative',
+                cursor: 'pointer'
               }}
             >
               <Box
@@ -147,15 +162,15 @@ export default function Header() {
                 sx={{ 
                   fontWeight: 400, 
                   color: 'var(--primary-green)',
-                  fontSize: { xs: '1.3rem', md: '1.5rem' },
+                  fontSize: { xs: '1.25rem', md: '1.375rem' },
                   ml: -0.5,
-                  fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                  fontFamily: 'var(--font-heading)',
                   textTransform: 'lowercase',
-                  letterSpacing: '-0.02em',
+                  letterSpacing: '-0.01em',
                   lineHeight: 1.2
                 }}
               >
-                gifted<Box component="span" sx={{ fontWeight: 900, color: 'var(--dark-green)', fontSize: '1.1em' }}>givings</Box>
+                gifted<Box component="span" sx={{ fontWeight: 700, color: 'var(--dark-green)' }}>givings</Box>
               </Typography>
             </Box>
           </Box>
@@ -166,6 +181,7 @@ export default function Header() {
                 edge="end" 
                 color="inherit" 
                 onClick={handleDrawerToggle}
+                aria-label="Open navigation menu"
                 sx={{ color: 'var(--primary-green)' }}
               >
                 <MenuIcon />
@@ -188,7 +204,7 @@ export default function Header() {
                     return (
                       <ListItem key={item.label} disablePadding>
                         <ListItemButton 
-                          onClick={() => scrollToSection(item.href)}
+                          onClick={() => handleNavClick(item)}
                           sx={{
                             py: 2,
                             px: 3,
@@ -280,60 +296,28 @@ export default function Header() {
               </Drawer>
             </>
           ) : (
-            <Box display="flex" alignItems="center" gap={2} sx={{ ml: 'auto' }}>
-              {/* Navigation Menu Dropdown */}
-              <Button
-                onClick={handleNavMenuOpen}
-                endIcon={<ExpandMore />}
-                sx={{
-                  color: 'var(--primary-green)',
-                  fontWeight: 600,
-                  px: 2,
-                  py: 1,
-                  borderRadius: 2,
-                  '&:hover': {
-                    background: 'var(--light-green)',
-                    transform: 'translateY(-1px)'
-                  }
-                }}
-              >
-                Menu
-              </Button>
-              <Menu
-                anchorEl={navMenuAnchor}
-                open={Boolean(navMenuAnchor)}
-                onClose={handleNavMenuClose}
-                PaperProps={{
-                  sx: {
-                    mt: 1,
-                    boxShadow: 'var(--shadow-lg)',
+            <Box display="flex" alignItems="center" gap={1} sx={{ ml: 'auto' }}>
+              {navLinks.map((item) => (
+                <Button
+                  key={item.label}
+                  onClick={() => handleNavClick(item)}
+                  sx={{
+                    color: 'var(--primary-green)',
+                    fontWeight: 600,
+                    px: 1.5,
+                    py: 1,
+                    fontSize: '0.9rem',
                     borderRadius: 2,
-                    border: '1px solid var(--light-gray)',
-                    minWidth: 200
-                  }
-                }}
-              >
-                {navLinks.map((item) => {
-                  const IconComponent = item.icon;
-                  return (
-                    <MenuItem 
-                      key={item.label}
-                      onClick={() => {
-                        scrollToSection(item.href);
-                        handleNavMenuClose();
-                      }}
-                      sx={{ 
-                        fontWeight: 600,
-                        py: 1.5,
-                        px: 2
-                      }}
-                    >
-                      <IconComponent sx={{ mr: 2, color: 'var(--primary-green)' }} />
-                      {item.label}
-                    </MenuItem>
-                  );
-                })}
-              </Menu>
+                    whiteSpace: 'nowrap',
+                    '&:hover': {
+                      background: 'var(--light-green)',
+                      transform: 'translateY(-1px)'
+                    }
+                  }}
+                >
+                  {item.label}
+                </Button>
+              ))}
               
               {isAuthenticated ? (
                 <>
@@ -421,21 +405,9 @@ export default function Header() {
               
               <Button 
                 onClick={() => scrollToSection('#donate')}
-                variant="contained" 
-                sx={{
-                  background: 'linear-gradient(135deg, var(--accent-green), #00cc6a)',
-                  color: 'var(--primary-green)',
-                  borderRadius: 3,
-                  fontWeight: 700,
-                  px: 4,
-                  py: 1.5,
-                  boxShadow: 'var(--shadow-md)',
-                  '&:hover': { 
-                    background: 'linear-gradient(135deg, #00cc6a, var(--accent-green))',
-                    transform: 'translateY(-2px)',
-                    boxShadow: 'var(--shadow-lg)'
-                  }
-                }}
+                variant="contained"
+                color="secondary"
+                sx={{ px: 3, py: 1.25, fontWeight: 600 }}
               >
                 Donate Now
               </Button>

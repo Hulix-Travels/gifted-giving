@@ -7,12 +7,18 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config({ path: './config.env' });
 
+const { getJwtSecret } = require('./utils/jwtSecret');
+
+// Fail fast in production if JWT_SECRET is missing
+if (process.env.NODE_ENV === 'production') {
+  getJwtSecret();
+}
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Trust proxy - required when behind a reverse proxy (e.g., Render, Heroku, AWS ELB)
-// This allows express-rate-limit to correctly identify client IPs from X-Forwarded-For headers
-app.set('trust proxy', true);
+// Trust proxy — single hop when behind Render/Vercel
+app.set('trust proxy', 1);
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -44,39 +50,76 @@ const envOriginPatterns = (process.env.ALLOWED_ORIGIN_PATTERNS || '')
   .filter(Boolean);
 const clientUrl = process.env.CLIENT_URL;
 
-const corsOptions = {
-  origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
-    
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'http://127.0.0.1:5173',
-      'https://www.giftedgivings.com',
-      'https://giftedgivings.com',
-    ]
-      .concat(envAllowedOrigins)
-      .concat(clientUrl ? [clientUrl] : []);
+const buildAllowedOrigins = () => [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'https://www.giftedgivings.com',
+  'https://giftedgivings.com',
+]
+  .concat(envAllowedOrigins)
+  .concat(clientUrl ? [clientUrl] : []);
 
-    const isListed = allowedOrigins.includes(origin);
-    const matchesPattern = envOriginPatterns.some(re => re.test(origin));
+const corsOptionsDelegate = (req, callback) => {
+  const origin = req.header('Origin');
+  const path = req.path || req.originalUrl || '';
 
-    if (isListed || matchesPattern) {
-      return callback(null, true);
+  const baseOptions = {
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+  };
+
+  if (!origin) {
+    const allowNoOrigin =
+      process.env.NODE_ENV !== 'production' ||
+      path.includes('/stripe/webhook') ||
+      path.startsWith('/api/health');
+
+    if (!allowNoOrigin) {
+      console.log('CORS blocked no-origin request to:', path);
     }
-    console.log('CORS blocked origin:', origin);
-    // Do not throw; return false to avoid 500s on disallowed origins
-    return callback(null, false);
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+    return callback(null, { ...baseOptions, origin: allowNoOrigin });
+  }
+
+  const allowedOrigins = buildAllowedOrigins();
+  const isListed = allowedOrigins.includes(origin);
+  const matchesPattern = envOriginPatterns.some(re => re.test(origin));
+
+  if (isListed || matchesPattern) {
+    return callback(null, { ...baseOptions, origin: true });
+  }
+
+  console.log('CORS blocked origin:', origin);
+  return callback(null, { ...baseOptions, origin: false });
 };
 
-app.use(cors(corsOptions));
+app.use(cors(corsOptionsDelegate));
 // Explicitly handle preflight requests for all routes with same options
-app.options('*', cors(corsOptions));
+app.options('*', cors(corsOptionsDelegate));
+
+// Stricter rate limits on authentication endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { message: 'Too many requests. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const sensitiveAuthLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: { message: 'Too many attempts. Please try again in an hour.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+app.use('/api/auth/login', sensitiveAuthLimiter);
+app.use('/api/auth/forgot-password', sensitiveAuthLimiter);
+app.use('/api/auth/reset-password', sensitiveAuthLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/verify-email', authLimiter);
 
 // Rate limiting
 const limiter = rateLimit({
@@ -122,13 +165,19 @@ const connectDB = async () => {
     await mongoose.connect(mongoURI);
     
     console.log('✅ Connected to MongoDB successfully');
+    return true;
   } catch (error) {
     console.error('❌ MongoDB connection error:', error.message);
     console.log('\n📋 To fix this issue:');
     console.log('1. Install MongoDB: https://docs.mongodb.com/manual/installation/');
     console.log('2. Start MongoDB service: sudo systemctl start mongod');
-    console.log('3. Or use MongoDB Atlas (cloud): Update MONGODB_URI in .env file');
+    console.log('3. Or use MongoDB Atlas (cloud): Update MONGODB_URI in config.env');
+    if (process.env.NODE_ENV === 'production') {
+      console.error('Exiting — production requires a working database connection.');
+      process.exit(1);
+    }
     console.log('\n🚀 The server will continue running but database features will not work.');
+    return false;
   }
 };
 

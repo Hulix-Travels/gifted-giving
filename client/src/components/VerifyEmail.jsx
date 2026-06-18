@@ -1,23 +1,27 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Box, Card, CardContent, Typography, Button, CircularProgress, Alert } from '@mui/material';
 import { authAPI } from '../services/api';
+import { getTokenFromUrl, clearTokenFromUrl } from '../utils/hashToken';
+import { panelCard } from '../theme/styles';
 
-function useQuery() {
-  return new URLSearchParams(useLocation().search);
-}
+const submitButtonSx = {
+  py: 1.5,
+  fontWeight: 600,
+  textTransform: 'none',
+  fontSize: '1rem'
+};
 
 export default function VerifyEmail() {
-  const query = useQuery();
-  const token = query.get('token');
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [success, setSuccess] = useState(false);
   const [message, setMessage] = useState('');
   const [email, setEmail] = useState('');
-  const navigate = useNavigate();
 
   useEffect(() => {
     async function verify() {
+      const token = getTokenFromUrl();
       if (!token) {
         setLoading(false);
         setSuccess(false);
@@ -30,79 +34,88 @@ export default function VerifyEmail() {
         const data = await authAPI.verifyEmail(token);
         setSuccess(true);
         setMessage(data.message || 'Email verified successfully!');
-        if (data.user && data.user.email) {
+        if (data.user?.email) {
           setEmail(data.user.email);
         }
+        clearTokenFromUrl('/verify-email');
       } catch (error) {
         setSuccess(false);
         setMessage(error.message || 'Verification failed. The token may be invalid or expired.');
-        console.error('Verification error:', error);
+        if (import.meta.env.DEV) {
+          console.error('Verification error:', error);
+        }
       } finally {
         setLoading(false);
       }
     }
-    
+
     verify();
-  }, [token]);
+  }, []);
 
   const handleContinue = () => {
     if (email && window.openLoginModal) {
       window.openLoginModal(email);
     } else {
-      window.openLoginModal && window.openLoginModal();
+      window.openLoginModal?.();
     }
     navigate('/');
   };
 
   return (
-    <Box sx={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2 }}>
-      <Card sx={{ maxWidth: 500, width: '100%', p: 3, borderRadius: 3, boxShadow: 4 }}>
-        <CardContent sx={{ textAlign: 'center' }}>
+    <Box sx={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2, mt: 8, backgroundColor: 'var(--cream)' }}>
+      <Card sx={{ ...panelCard, maxWidth: 500, width: '100%', p: { xs: 2.5, md: 3 } }}>
+        <CardContent sx={{ textAlign: 'center', p: 0, '&:last-child': { pb: 0 } }}>
           {loading ? (
             <>
-              <CircularProgress sx={{ mb: 2 }} />
-              <Typography variant="body1" color="text.secondary">
-                Verifying your email...
+              <CircularProgress sx={{ mb: 2, color: 'var(--accent-green)' }} />
+              <Typography variant="body2" sx={{ color: 'var(--gray)' }}>
+                Verifying your email…
               </Typography>
             </>
           ) : (
             <>
-              <Typography variant="h5" sx={{ mb: 2, color: success ? 'success.main' : 'error.main' }}>
-                {success ? '✓ Email Verified!' : 'Verification Failed'}
+              <Typography
+                variant="h5"
+                sx={{
+                  mb: 2,
+                  fontFamily: 'var(--font-heading)',
+                  fontWeight: 600,
+                  color: success ? 'var(--primary-green)' : 'error.main'
+                }}
+              >
+                {success ? 'Email verified' : 'Verification failed'}
               </Typography>
-              <Alert 
-                severity={success ? 'success' : 'error'} 
-                sx={{ mb: 3, textAlign: 'left' }}
+              <Alert
+                severity={success ? 'success' : 'error'}
+                sx={{ mb: 3, borderRadius: 'var(--radius-sm)', textAlign: 'left' }}
               >
                 {message}
               </Alert>
               {success && (
                 <>
                   {email && (
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    <Typography variant="body2" sx={{ color: 'var(--gray)', mb: 2, lineHeight: 1.6 }}>
                       Your email <strong>{email}</strong> has been verified.
                     </Typography>
                   )}
-                  <Button 
-                    variant="contained" 
-                    color="primary" 
-                    onClick={handleContinue}
-                    fullWidth
-                    sx={{ mt: 2 }}
-                  >
-                    Continue to Login
+                  <Button variant="contained" color="primary" onClick={handleContinue} fullWidth sx={submitButtonSx}>
+                    Continue to log in
                   </Button>
                 </>
               )}
               {!success && (
-                <Button 
-                  variant="outlined" 
-                  color="primary" 
+                <Button
+                  variant="outlined"
                   onClick={() => navigate('/')}
                   fullWidth
-                  sx={{ mt: 2 }}
+                  sx={{
+                    ...submitButtonSx,
+                    borderColor: 'var(--primary-green)',
+                    color: 'var(--primary-green)',
+                    '&:hover': { borderColor: 'var(--dark-green)', backgroundColor: 'var(--light-green)' }
+                  }}
                 >
-                  Go to Home
+                  Go to home
                 </Button>
               )}
             </>
@@ -111,4 +124,4 @@ export default function VerifyEmail() {
       </Card>
     </Box>
   );
-} 
+}

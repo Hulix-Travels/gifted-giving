@@ -1,75 +1,81 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { getJwtSecret } = require('../utils/jwtSecret');
+const { isTokenSessionValid } = require('../utils/jwtTokens');
+
+async function resolveUserFromToken(token) {
+  if (!token) {
+    return { status: 401, message: 'No token, authorization denied' };
+  }
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, getJwtSecret());
+  } catch {
+    return { status: 401, message: 'Token is not valid' };
+  }
+
+  const user = await User.findById(decoded.userId).select('-password');
+  if (!user) {
+    return { status: 401, message: 'Token is not valid' };
+  }
+
+  if (!isTokenSessionValid(user, decoded)) {
+    return { status: 401, message: 'Session expired. Please log in again.' };
+  }
+
+  return { user };
+}
 
 const auth = async (req, res, next) => {
   try {
-    // Get token from header
     const token = req.header('Authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return res.status(401).json({ message: 'No token, authorization denied' });
+    const result = await resolveUserFromToken(token);
+
+    if (result.user) {
+      req.user = result.user;
+      return next();
     }
 
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    
-    // Get user from token
-    const user = await User.findById(decoded.userId).select('-password');
-    if (!user) {
-      return res.status(401).json({ message: 'Token is not valid' });
-    }
-
-    req.user = user;
-    next();
+    return res.status(result.status).json({ message: result.message });
   } catch (error) {
     console.error('Auth middleware error:', error);
     res.status(401).json({ message: 'Token is not valid' });
   }
 };
 
-// Optional auth middleware - doesn't fail if no token
 const optionalAuth = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
-    
-    if (token) {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-      const user = await User.findById(decoded.userId).select('-password');
-      if (user) {
-        req.user = user;
-      }
+    if (!token) {
+      return next();
     }
-    
+
+    const result = await resolveUserFromToken(token);
+    if (result.user) {
+      req.user = result.user;
+    }
+
     next();
-  } catch (error) {
-    // Continue without user if token is invalid
+  } catch {
     next();
   }
 };
 
-// Admin authorization middleware
 const adminAuth = async (req, res, next) => {
   try {
-    // First check if user is authenticated
     const token = req.header('Authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return res.status(401).json({ message: 'No token, authorization denied' });
+    const result = await resolveUserFromToken(token);
+
+    if (!result.user) {
+      return res.status(result.status).json({ message: result.message });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    const user = await User.findById(decoded.userId).select('-password');
-    
-    if (!user) {
-      return res.status(401).json({ message: 'Token is not valid' });
-    }
-
-    // Check if user is admin
-    if (user.role !== 'admin') {
+    if (result.user.role !== 'admin') {
       return res.status(403).json({ message: 'Access denied. Admin privileges required.' });
     }
 
-    req.user = user;
+    req.user = result.user;
     next();
   } catch (error) {
     console.error('Admin auth middleware error:', error);
@@ -77,4 +83,4 @@ const adminAuth = async (req, res, next) => {
   }
 };
 
-module.exports = { auth, optionalAuth, adminAuth }; 
+module.exports = { auth, optionalAuth, adminAuth, resolveUserFromToken };

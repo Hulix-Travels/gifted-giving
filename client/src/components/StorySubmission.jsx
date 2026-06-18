@@ -15,52 +15,63 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  Grid,
+  CircularProgress
 } from '@mui/material';
-import { Close, Send, Star } from '@mui/icons-material';
+import { Close } from '@mui/icons-material';
 import { successStoriesAPI } from '../services/api';
+import FormSection from './ui/FormSection';
+import { fieldSx } from '../theme/styles';
 
 const storyCategories = [
-  'Education Program',
-  'Healthcare Initiative',
-  'Nutrition Program',
-  'Volunteer Experience',
-  'General Impact',
+  'Education',
+  'Healthcare',
+  'Nutrition',
+  'Volunteer experience',
+  'General impact',
   'Other'
 ];
 
+const emptyForm = {
+  author: '',
+  email: '',
+  category: '',
+  rating: 5,
+  content: '',
+  location: ''
+};
+
 export default function StorySubmission({ open, onClose }) {
-  const [formData, setFormData] = useState({
-    author: '',
-    email: '',
-    category: '',
-    rating: 5,
-    content: '',
-    location: ''
-  });
+  const [formData, setFormData] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
   const handleChange = (field) => (event) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [field]: event.target.value
     }));
   };
 
-  const handleRatingChange = (event, newValue) => {
-    setFormData(prev => ({
+  const handleRatingChange = (_event, newValue) => {
+    setFormData((prev) => ({
       ...prev,
       rating: newValue
     }));
   };
 
+  const resetForm = () => {
+    setFormData(emptyForm);
+    setError('');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!formData.author || !formData.content || !formData.email) {
-      setError('Please fill in all required fields');
+
+    if (!formData.author.trim() || !formData.content.trim() || !formData.email.trim()) {
+      setError('Please fill in your name, email, and story.');
       return;
     }
 
@@ -68,39 +79,24 @@ export default function StorySubmission({ open, onClose }) {
     setError('');
 
     try {
-      const storyData = {
-        author: formData.author,
-        email: formData.email,
-        content: formData.content,
+      await successStoriesAPI.create({
+        author: formData.author.trim(),
+        email: formData.email.trim(),
+        content: formData.content.trim(),
         category: formData.category,
         rating: formData.rating,
-        location: formData.location,
-        status: 'pending' // Will be reviewed before publishing
-      };
-      
-      console.log('Submitting story data:', storyData);
-      
-      const response = await successStoriesAPI.create(storyData);
-      console.log('Story submission response:', response);
-      
-      setSuccess(true);
-      setFormData({
-        author: '',
-        email: '',
-        category: '',
-        rating: 5,
-        content: '',
-        location: ''
+        location: formData.location.trim(),
+        status: 'pending'
       });
-      
-      // Close dialog after a short delay
+
+      setSuccess(true);
+      resetForm();
+
       setTimeout(() => {
         onClose();
         setSuccess(false);
       }, 2000);
-      
     } catch (err) {
-      console.error('Story submission error:', err);
       setError(err.message || 'Failed to submit story. Please try again.');
     } finally {
       setLoading(false);
@@ -109,15 +105,7 @@ export default function StorySubmission({ open, onClose }) {
 
   const handleClose = () => {
     if (!loading) {
-      setFormData({
-        author: '',
-        email: '',
-        category: '',
-        rating: 5,
-        content: '',
-        location: ''
-      });
-      setError('');
+      resetForm();
       onClose();
     }
   };
@@ -127,180 +115,134 @@ export default function StorySubmission({ open, onClose }) {
       <Dialog
         open={open}
         onClose={handleClose}
-        maxWidth="md"
+        maxWidth="sm"
         fullWidth
         PaperProps={{
           sx: {
-            borderRadius: 4,
-            boxShadow: '0 20px 40px rgba(0,0,0,0.1)'
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--color-border)',
+            boxShadow: 'var(--shadow-lg)'
           }
         }}
       >
-        <DialogTitle sx={{ 
-          background: 'linear-gradient(135deg, var(--primary-green), var(--dark-green))',
-          color: 'var(--white)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          py: 3
-        }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Star sx={{ fontSize: 28 }} />
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              Share Your Success Story
-            </Typography>
-          </Box>
-          <IconButton 
-            onClick={handleClose} 
-            disabled={loading}
-            sx={{ color: 'var(--white)' }}
+        <DialogTitle
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            py: 2.5,
+            px: 3,
+            borderBottom: '1px solid var(--color-border)'
+          }}
+        >
+          <Typography
+            variant="h6"
+            component="span"
+            sx={{ fontFamily: 'var(--font-heading)', fontWeight: 600, color: 'var(--primary-green)' }}
           >
+            Share your story
+          </Typography>
+          <IconButton onClick={handleClose} disabled={loading} aria-label="Close" size="small">
             <Close />
           </IconButton>
         </DialogTitle>
 
-        <DialogContent sx={{ p: 4 }}>
-          <Typography variant="body1" sx={{ mb: 3, color: 'var(--gray)' }}>
-            Help us inspire others by sharing how Gifted givings has made a difference in your life or community. 
-            Your story will be reviewed before being published on our website.
+        <DialogContent sx={{ px: 3, py: 3 }}>
+          <Typography variant="body2" sx={{ mb: 3, color: 'var(--gray)', lineHeight: 1.65 }}>
+            Tell us how Gifted givings has made a difference. Stories are reviewed before they appear on
+            the site.
           </Typography>
 
-          <Box component="form" onSubmit={handleSubmit}>
-            <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-              <TextField
-                fullWidth
-                label="Your Name *"
-                value={formData.author}
-                onChange={handleChange('author')}
-                disabled={loading}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 2,
-                    '&:hover fieldset': {
-                      borderColor: 'var(--primary-green)',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: 'var(--primary-green)',
-                    },
-                  }
-                }}
-              />
-              <TextField
-                fullWidth
-                label="Email Address *"
-                type="email"
-                value={formData.email}
-                onChange={handleChange('email')}
-                disabled={loading}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 2,
-                    '&:hover fieldset': {
-                      borderColor: 'var(--primary-green)',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: 'var(--primary-green)',
-                    },
-                  }
-                }}
-              />
-            </Box>
+          <Box component="form" onSubmit={handleSubmit} noValidate>
+            <FormSection title="1. About you">
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Your name"
+                    value={formData.author}
+                    onChange={handleChange('author')}
+                    disabled={loading}
+                    required
+                    sx={fieldSx}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Email"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleChange('email')}
+                    disabled={loading}
+                    required
+                    sx={fieldSx}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FormControl fullWidth sx={fieldSx}>
+                    <InputLabel>Program area</InputLabel>
+                    <Select
+                      value={formData.category}
+                      onChange={handleChange('category')}
+                      disabled={loading}
+                      label="Program area"
+                    >
+                      {storyCategories.map((category) => (
+                        <MenuItem key={category} value={category}>
+                          {category}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Location (optional)"
+                    value={formData.location}
+                    onChange={handleChange('location')}
+                    disabled={loading}
+                    placeholder="City, country"
+                    sx={fieldSx}
+                  />
+                </Grid>
+              </Grid>
+            </FormSection>
 
-            <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-              <FormControl fullWidth>
-                <InputLabel>Category</InputLabel>
-                <Select
-                  value={formData.category}
-                  onChange={handleChange('category')}
+            <FormSection title="2. Your experience" last>
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="body2" sx={{ mb: 1, color: 'var(--gray)' }}>
+                  Rating
+                </Typography>
+                <Rating
+                  value={formData.rating}
+                  onChange={handleRatingChange}
                   disabled={loading}
-                  sx={{
-                    borderRadius: 2,
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'var(--primary-green)',
-                    },
-                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'var(--primary-green)',
-                    },
-                  }}
-                >
-                  {storyCategories.map((category) => (
-                    <MenuItem key={category} value={category}>
-                      {category}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                  sx={{ color: 'var(--accent-green)' }}
+                />
+              </Box>
               <TextField
                 fullWidth
-                label="Location (Optional)"
-                value={formData.location}
-                onChange={handleChange('location')}
+                multiline
+                minRows={5}
+                label="Your story"
+                value={formData.content}
+                onChange={handleChange('content')}
                 disabled={loading}
-                placeholder="City, Country"
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 2,
-                    '&:hover fieldset': {
-                      borderColor: 'var(--primary-green)',
-                    },
-                    '&.Mui-focused fieldset': {
-                      borderColor: 'var(--primary-green)',
-                    },
-                  }
-                }}
+                required
+                placeholder="What changed for you or your community?"
+                sx={fieldSx}
               />
-            </Box>
-
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="body2" sx={{ mb: 1, color: 'var(--gray)' }}>
-                How would you rate your experience? *
-              </Typography>
-              <Rating
-                value={formData.rating}
-                onChange={handleRatingChange}
-                disabled={loading}
-                sx={{ color: 'var(--accent-green)' }}
-                size="large"
-              />
-            </Box>
-
-            <TextField
-              fullWidth
-              multiline
-              rows={6}
-              label="Your Story *"
-              value={formData.content}
-              onChange={handleChange('content')}
-              disabled={loading}
-              placeholder="Tell us about your experience with Gifted givings. How has it impacted you or your community? What difference has it made?"
-              sx={{
-                mb: 3,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2,
-                  '&:hover fieldset': {
-                    borderColor: 'var(--primary-green)',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: 'var(--primary-green)',
-                  },
-                }
-              }}
-            />
-
-            <Typography variant="caption" sx={{ color: 'var(--gray)', fontSize: '0.8rem' }}>
-              * Required fields. Your story will be reviewed before being published.
-            </Typography>
+            </FormSection>
           </Box>
         </DialogContent>
 
-        <DialogActions sx={{ p: 3, gap: 2 }}>
+        <DialogActions sx={{ px: 3, py: 2.5, borderTop: '1px solid var(--color-border)', gap: 1 }}>
           <Button
             onClick={handleClose}
             disabled={loading}
-            sx={{
-              color: 'var(--gray)',
-              fontWeight: 600
-            }}
+            sx={{ color: 'var(--gray)', fontWeight: 600, textTransform: 'none' }}
           >
             Cancel
           </Button>
@@ -308,25 +250,17 @@ export default function StorySubmission({ open, onClose }) {
             onClick={handleSubmit}
             disabled={loading}
             variant="contained"
-            startIcon={loading ? null : <Send />}
-            sx={{
-              background: 'linear-gradient(135deg, var(--accent-green), #00cc6a)',
-              color: 'var(--primary-green)',
-              fontWeight: 700,
-              px: 4,
-              py: 1.5,
-              borderRadius: 3,
-              '&:hover': {
-                background: 'linear-gradient(135deg, #00cc6a, var(--accent-green))',
-                transform: 'translateY(-1px)'
-              },
-              '&:disabled': {
-                background: 'var(--light-gray)',
-                color: 'var(--gray)'
-              }
-            }}
+            color="primary"
+            sx={{ fontWeight: 600, textTransform: 'none', px: 3 }}
           >
-            {loading ? 'Submitting...' : 'Submit Story'}
+            {loading ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CircularProgress size={18} color="inherit" />
+                Submitting…
+              </Box>
+            ) : (
+              'Submit story'
+            )}
           </Button>
         </DialogActions>
       </Dialog>
@@ -337,12 +271,8 @@ export default function StorySubmission({ open, onClose }) {
         onClose={() => setSuccess(false)}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert 
-          onClose={() => setSuccess(false)} 
-          severity="success" 
-          sx={{ width: '100%' }}
-        >
-          Thank you for sharing your story! It will be reviewed and published soon.
+        <Alert onClose={() => setSuccess(false)} severity="success" sx={{ width: '100%' }}>
+          Thank you. Your story will be reviewed shortly.
         </Alert>
       </Snackbar>
 
@@ -352,11 +282,7 @@ export default function StorySubmission({ open, onClose }) {
         onClose={() => setError('')}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert 
-          onClose={() => setError('')} 
-          severity="error" 
-          sx={{ width: '100%' }}
-        >
+        <Alert onClose={() => setError('')} severity="error" sx={{ width: '100%' }}>
           {error}
         </Alert>
       </Snackbar>

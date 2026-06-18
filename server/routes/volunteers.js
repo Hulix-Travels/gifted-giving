@@ -6,6 +6,7 @@ const router = express.Router();
 
 // Volunteer application model (simplified for now)
 const VolunteerApplication = require('../models/VolunteerApplication');
+const { parsePagination } = require('../utils/pagination');
 
 // @route   POST /api/volunteers/apply
 // @desc    Submit volunteer application
@@ -123,13 +124,13 @@ router.get('/my-applications', auth, async (req, res) => {
       return res.status(400).json({ message: 'User email not found in token.' });
     }
 
-    const { page = 1, limit = 10 } = req.query;
+    const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 10 });
     const query = { email: userEmail };
 
     const applications = await VolunteerApplication.find(query)
       .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
+      .limit(limit)
+      .skip(skip)
       .select('-__v')
       .exec();
 
@@ -152,7 +153,8 @@ router.get('/my-applications', auth, async (req, res) => {
 // @access  Private (Admin only)
 router.get('/applications', adminAuth, async (req, res) => {
   try {
-    const { page = 1, limit = 10, status, location, skills } = req.query;
+    const { status, location, skills } = req.query;
+    const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 10 });
     
     const query = {};
     if (status) {
@@ -167,8 +169,8 @@ router.get('/applications', adminAuth, async (req, res) => {
 
     const applications = await VolunteerApplication.find(query)
       .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
+      .limit(limit)
+      .skip(skip)
       .select('-__v')
       .exec();
 
@@ -257,10 +259,27 @@ router.put('/applications/:id/status', adminAuth, [
   }
 });
 
-// @route   GET /api/volunteers/stats
-// @desc    Get volunteer statistics
+// @route   GET /api/volunteers/stats/summary
+// @desc    Public volunteer count for impact displays
 // @access  Public
-router.get('/stats', async (req, res) => {
+router.get('/stats/summary', async (req, res) => {
+  try {
+    const [totalApplications, approvedApplications] = await Promise.all([
+      VolunteerApplication.countDocuments(),
+      VolunteerApplication.countDocuments({ status: 'approved' })
+    ]);
+
+    res.json({ totalApplications, approvedApplications });
+  } catch (error) {
+    console.error('Get volunteer summary error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   GET /api/volunteers/stats
+// @desc    Get detailed volunteer statistics
+// @access  Private (Admin only)
+router.get('/stats', adminAuth, async (req, res) => {
   try {
     const stats = await VolunteerApplication.aggregate([
       {

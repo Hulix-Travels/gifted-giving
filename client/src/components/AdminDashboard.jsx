@@ -93,6 +93,16 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { donationsAPI, volunteersAPI, programsAPI, newsletterAPI } from '../services/api';
+import { API_BASE_URL } from '../config/api';
+import { AUTH_STORAGE_KEY } from '../constants/auth';
+
+function getAuthHeaders(contentType) {
+  const token = localStorage.getItem(AUTH_STORAGE_KEY);
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (contentType) headers['Content-Type'] = contentType;
+  return headers;
+}
 
 function TabPanel({ children, value, index, ...other }) {
   return (
@@ -122,12 +132,17 @@ function ImageUploadField({ label, value, onChange, disabled }) {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const token = localStorage.getItem(AUTH_STORAGE_KEY);
       const res = await fetch(`${API_BASE_URL}/upload`, {
         method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
       });
       const data = await res.json();
+      if (!res.ok) {
+        setError(data.message || 'Upload failed');
+        return;
+      }
       if (data.url) {
         onChange(data.url);
       } else {
@@ -302,8 +317,9 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (tabValue === 4) {
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-      fetch(`${API_BASE_URL}/feedback?page=${feedbackPage}&limit=${feedbackLimit}`)
+      fetch(`${API_BASE_URL}/feedback?page=${feedbackPage}&limit=${feedbackLimit}`, {
+        headers: getAuthHeaders()
+      })
         .then(res => res.json())
         .then(data => {
           setFeedbackList(data.feedback || []);
@@ -314,8 +330,9 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (tabValue === 5) {
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-      fetch(`${API_BASE_URL}/success-stories?page=${storiesPage}&limit=${storiesLimit}`)
+      fetch(`${API_BASE_URL}/success-stories?page=${storiesPage}&limit=${storiesLimit}`, {
+        headers: getAuthHeaders()
+      })
         .then(res => res.json())
         .then(data => {
           setStories(data.stories || []);
@@ -937,10 +954,9 @@ export default function AdminDashboard() {
   };
 
   const handleFeedbackStatus = (id, status) => {
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
     fetch(`${API_BASE_URL}/feedback/${id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders('application/json'),
       body: JSON.stringify({ status })
     })
       .then(async res => {
@@ -955,7 +971,9 @@ export default function AdminDashboard() {
         if (!data || !data.feedback) return;
         setSnackbar({ open: true, message: 'Feedback status updated!', severity: 'success' });
         // Refetch feedback list for current page after update
-        fetch(`${API_BASE_URL}/feedback?page=${feedbackPage}&limit=${feedbackLimit}`)
+        fetch(`${API_BASE_URL}/feedback?page=${feedbackPage}&limit=${feedbackLimit}`, {
+        headers: getAuthHeaders()
+      })
           .then(res => res.json())
           .then(data => {
             setFeedbackList(data.feedback || []);
@@ -968,12 +986,11 @@ export default function AdminDashboard() {
   };
 
   const handleSaveStory = (story) => {
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
     const method = story._id ? 'PATCH' : 'POST';
     const url = story._id ? `${API_BASE_URL}/success-stories/${story._id}` : `${API_BASE_URL}/success-stories`;
     fetch(url, {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders('application/json'),
       body: JSON.stringify(story)
     })
       .then(res => res.json())
@@ -981,7 +998,9 @@ export default function AdminDashboard() {
         setStoryDialogOpen(false);
         setEditingStory(null);
         // Refetch stories
-        fetch(`${API_BASE_URL}/success-stories?page=${storiesPage}&limit=${storiesLimit}`)
+        fetch(`${API_BASE_URL}/success-stories?page=${storiesPage}&limit=${storiesLimit}`, {
+        headers: getAuthHeaders()
+      })
           .then(res => res.json())
           .then(data => {
             setStories(data.stories || []);
@@ -991,16 +1010,17 @@ export default function AdminDashboard() {
   };
 
   const handleUpdateStoryStatus = (storyId, status) => {
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
     fetch(`${API_BASE_URL}/success-stories/${storyId}/status`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders('application/json'),
       body: JSON.stringify({ status })
     })
       .then(res => res.json())
       .then(() => {
         // Refetch stories
-        fetch(`${API_BASE_URL}/success-stories?page=${storiesPage}&limit=${storiesLimit}`)
+        fetch(`${API_BASE_URL}/success-stories?page=${storiesPage}&limit=${storiesLimit}`, {
+        headers: getAuthHeaders()
+      })
           .then(res => res.json())
           .then(data => {
             setStories(data.stories || []);
@@ -1023,11 +1043,15 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteStory = (id) => {
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-    fetch(`${API_BASE_URL}/success-stories/${id}`, { method: 'DELETE' })
+    fetch(`${API_BASE_URL}/success-stories/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    })
       .then(() => {
         // Refetch stories
-        fetch(`${API_BASE_URL}/success-stories?page=${storiesPage}&limit=${storiesLimit}`)
+        fetch(`${API_BASE_URL}/success-stories?page=${storiesPage}&limit=${storiesLimit}`, {
+        headers: getAuthHeaders()
+      })
           .then(res => res.json())
           .then(data => {
             setStories(data.stories || []);
@@ -1141,7 +1165,7 @@ export default function AdminDashboard() {
               color: '#E91E63' 
             }
           ].map((stat, index) => (
-            <Grid item xs={12} sm={6} md={3} key={index}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }} key={index}>
               <Card sx={{ 
                 p: 3, 
                 borderRadius: 3,
@@ -1537,7 +1561,7 @@ export default function AdminDashboard() {
             <Typography variant="h6" sx={{ mb: 3 }}>Analytics Dashboard</Typography>
             <Grid container spacing={3}>
               {/* Program Statistics */}
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Card>
                   <CardContent>
                     <Typography variant="h6" sx={{ mb: 2 }}>Program Statistics</Typography>
@@ -1563,7 +1587,7 @@ export default function AdminDashboard() {
               </Grid>
               
               {/* Donation Statistics */}
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Card>
                   <CardContent>
                     <Typography variant="h6" sx={{ mb: 2 }}>Donation Statistics</Typography>
@@ -1579,7 +1603,7 @@ export default function AdminDashboard() {
                 </Card>
               </Grid>
 
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Card>
                   <CardContent>
                     <Typography variant="h6" sx={{ mb: 2 }}>Volunteer Statistics</Typography>
@@ -1604,7 +1628,7 @@ export default function AdminDashboard() {
                 </Card>
               </Grid>
 
-              <Grid item xs={12} md={6}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Card>
                   <CardContent>
                     <Typography variant="h6" sx={{ mb: 2 }}>Recent Activity</Typography>
@@ -1636,7 +1660,7 @@ export default function AdminDashboard() {
               
               <Grid container spacing={3}>
                 {programs.map(program => (
-                  <Grid item xs={12} md={6} key={program._id}>
+                  <Grid size={{ xs: 12, md: 6 }} key={program._id}>
                     <Paper elevation={1} sx={{ p: 3, borderRadius: 2 }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Typography variant="h6" sx={{ fontWeight: 600 }}>
@@ -2104,7 +2128,7 @@ export default function AdminDashboard() {
 
             {/* Newsletter Stats */}
             <Grid container spacing={2} sx={{ mb: 3 }}>
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Card sx={{ 
                   background: 'linear-gradient(135deg, #f0f9f4 0%, #e8f5e8 100%)', 
                   color: '#2e7d32',
@@ -2118,7 +2142,7 @@ export default function AdminDashboard() {
                   </CardContent>
                 </Card>
               </Grid>
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Card sx={{ 
                   background: 'linear-gradient(135deg, #fef7f7 0%, #fce4ec 100%)', 
                   color: '#c62828',
@@ -2132,7 +2156,7 @@ export default function AdminDashboard() {
                   </CardContent>
                 </Card>
               </Grid>
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Card sx={{ 
                   background: 'linear-gradient(135deg, #f3f8ff 0%, #e3f2fd 100%)', 
                   color: '#1565c0',
@@ -2146,7 +2170,7 @@ export default function AdminDashboard() {
                   </CardContent>
                 </Card>
               </Grid>
-              <Grid item xs={12} sm={6} md={3}>
+              <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                 <Card sx={{ 
                   background: 'linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%)', 
                   color: '#424242',
@@ -2277,7 +2301,7 @@ export default function AdminDashboard() {
                       Provide the essential details about your program that will be displayed to donors.
                     </Typography>
                     <Grid container spacing={3}>
-                      <Grid item xs={12} md={6}>
+                      <Grid size={{ xs: 12, md: 6 }}>
                         <TextField
                           fullWidth
                           label="Program Name"
@@ -2297,7 +2321,7 @@ export default function AdminDashboard() {
                           }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={6}>
+                      <Grid size={{ xs: 12, md: 6 }}>
                         <FormControl fullWidth error={!!formErrors.category}>
                           <InputLabel shrink>Category *</InputLabel>
                           <Select
@@ -2328,7 +2352,7 @@ export default function AdminDashboard() {
                         </FormControl>
                       </Grid>
                       {(editingData.category === 'other' || selectedItem.data?.category === 'other') && (
-                        <Grid item xs={12} md={8}>
+                        <Grid size={{ xs: 12, md: 8 }}>
                           <TextField
                             fullWidth
                             label="Custom Category"
@@ -2349,7 +2373,7 @@ export default function AdminDashboard() {
                           />
                         </Grid>
                       )}
-                      <Grid item xs={12}>
+                      <Grid size={12}>
                         <TextField
                           fullWidth
                           multiline
@@ -2372,7 +2396,7 @@ export default function AdminDashboard() {
                           }}
                         />
                       </Grid>
-                      <Grid item xs={12}>
+                      <Grid size={12}>
                         <TextField
                           fullWidth
                           multiline
@@ -2414,7 +2438,7 @@ export default function AdminDashboard() {
                       Set the funding goals and currency for your program. The target amount will be displayed to donors.
                     </Typography>
                     <Grid container spacing={3}>
-                      <Grid item xs={12} md={6}>
+                      <Grid size={{ xs: 12, md: 6 }}>
                         <TextField
                           fullWidth
                           type="number"
@@ -2436,7 +2460,7 @@ export default function AdminDashboard() {
                           }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={6}>
+                      <Grid size={{ xs: 12, md: 6 }}>
                         <TextField
                           fullWidth
                           type="number"
@@ -2456,7 +2480,7 @@ export default function AdminDashboard() {
                           }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={6}>
+                      <Grid size={{ xs: 12, md: 6 }}>
                         <FormControl fullWidth error={!!formErrors.currency}>
                           <InputLabel shrink>Currency *</InputLabel>
                           <Select
@@ -2482,7 +2506,7 @@ export default function AdminDashboard() {
                           {formErrors.currency && <FormHelperText>{formErrors.currency}</FormHelperText>}
                         </FormControl>
                       </Grid>
-                      <Grid item xs={12} md={6}>
+                      <Grid size={{ xs: 12, md: 6 }}>
                         <Box sx={{ 
                           p: 2, 
                           bgcolor: 'rgba(0,255,140,0.05)', 
@@ -2524,7 +2548,7 @@ export default function AdminDashboard() {
                       Specify where your program will take place and when it will run. This helps donors understand the scope and timeline.
                     </Typography>
                     <Grid container spacing={3}>
-                      <Grid item xs={12} md={4}>
+                      <Grid size={{ xs: 12, md: 4 }}>
                         <TextField
                           fullWidth
                           label="Country"
@@ -2544,7 +2568,7 @@ export default function AdminDashboard() {
                           }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={4}>
+                      <Grid size={{ xs: 12, md: 4 }}>
                         <TextField
                           fullWidth
                           label="Region/State"
@@ -2562,7 +2586,7 @@ export default function AdminDashboard() {
                           }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={4}>
+                      <Grid size={{ xs: 12, md: 4 }}>
                         <TextField
                           fullWidth
                           label="City/Town"
@@ -2580,7 +2604,7 @@ export default function AdminDashboard() {
                           }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={6}>
+                      <Grid size={{ xs: 12, md: 6 }}>
                         <TextField
                           fullWidth
                           label="Latitude"
@@ -2600,7 +2624,7 @@ export default function AdminDashboard() {
                           }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={6}>
+                      <Grid size={{ xs: 12, md: 6 }}>
                         <TextField
                           fullWidth
                           label="Longitude"
@@ -2620,7 +2644,7 @@ export default function AdminDashboard() {
                           }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={6}>
+                      <Grid size={{ xs: 12, md: 6 }}>
                         <TextField
                           fullWidth
                           type="date"
@@ -2641,7 +2665,7 @@ export default function AdminDashboard() {
                           }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={6}>
+                      <Grid size={{ xs: 12, md: 6 }}>
                         <TextField
                           fullWidth
                           type="date"
@@ -2682,7 +2706,7 @@ export default function AdminDashboard() {
                       Upload images and configure program settings. Featured programs appear prominently on the homepage.
                     </Typography>
                     <Grid container spacing={3}>
-                      <Grid item xs={12} md={6}>
+                      <Grid size={{ xs: 12, md: 6 }}>
                         <ImageUploadField 
                           label="Main Program Image" 
                           value={dialogType === 'view' ? selectedItem.data?.image || '' : editingData.image || ''} 
@@ -2696,7 +2720,7 @@ export default function AdminDashboard() {
                           This image will be displayed on program cards and detail pages. Recommended size: 800x600px
                         </Typography>
                       </Grid>
-                      <Grid item xs={12} md={6}>
+                      <Grid size={{ xs: 12, md: 6 }}>
                         <FormControl fullWidth error={!!formErrors.status}>
                           <InputLabel shrink>Program Status *</InputLabel>
                           <Select
@@ -2721,7 +2745,7 @@ export default function AdminDashboard() {
                           {formErrors.status && <FormHelperText>{formErrors.status}</FormHelperText>}
                         </FormControl>
                       </Grid>
-                      <Grid item xs={12} md={6}>
+                      <Grid size={{ xs: 12, md: 6 }}>
                         <FormControl fullWidth>
                           <InputLabel shrink>Priority Level</InputLabel>
                           <Select
@@ -2744,7 +2768,7 @@ export default function AdminDashboard() {
                           </Select>
                         </FormControl>
                       </Grid>
-                      <Grid item xs={12} md={6}>
+                      <Grid size={{ xs: 12, md: 6 }}>
                         <FormControl fullWidth>
                           <InputLabel shrink>Featured Program</InputLabel>
                           <Select
@@ -2758,7 +2782,7 @@ export default function AdminDashboard() {
                           </Select>
                         </FormControl>
                       </Grid>
-                      <Grid item xs={12}>
+                      <Grid size={12}>
                         <TextField
                           fullWidth
                           label="Tags"
@@ -2776,7 +2800,7 @@ export default function AdminDashboard() {
                           }}
                         />
                       </Grid>
-                      <Grid item xs={12}>
+                      <Grid size={12}>
                         <TextField
                           fullWidth
                           multiline
@@ -2825,7 +2849,7 @@ export default function AdminDashboard() {
                         Track the impact your program has already made. Leave as 0 for new programs.
                       </Typography>
                       <Grid container spacing={3}>
-                      <Grid item xs={12} md={4}>
+                      <Grid size={{ xs: 12, md: 4 }}>
                         <TextField
                           fullWidth
                           type="number"
@@ -2845,7 +2869,7 @@ export default function AdminDashboard() {
                             }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={4}>
+                      <Grid size={{ xs: 12, md: 4 }}>
                         <TextField
                           fullWidth
                           type="number"
@@ -2865,7 +2889,7 @@ export default function AdminDashboard() {
                             }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={4}>
+                      <Grid size={{ xs: 12, md: 4 }}>
                         <TextField
                           fullWidth
                           type="number"
@@ -2885,7 +2909,7 @@ export default function AdminDashboard() {
                             }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={6}>
+                      <Grid size={{ xs: 12, md: 6 }}>
                         <TextField
                           fullWidth
                           type="number"
@@ -2905,7 +2929,7 @@ export default function AdminDashboard() {
                             }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={6}>
+                      <Grid size={{ xs: 12, md: 6 }}>
                         <TextField
                           fullWidth
                           type="number"
@@ -2937,7 +2961,7 @@ export default function AdminDashboard() {
                         Set the goals your program aims to achieve. These will be displayed to donors to show the program's potential impact.
                       </Typography>
                       <Grid container spacing={3}>
-                      <Grid item xs={12} md={4}>
+                      <Grid size={{ xs: 12, md: 4 }}>
                         <TextField
                           fullWidth
                           type="number"
@@ -2957,7 +2981,7 @@ export default function AdminDashboard() {
                             }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={4}>
+                      <Grid size={{ xs: 12, md: 4 }}>
                         <TextField
                           fullWidth
                           type="number"
@@ -2977,7 +3001,7 @@ export default function AdminDashboard() {
                             }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={4}>
+                      <Grid size={{ xs: 12, md: 4 }}>
                         <TextField
                           fullWidth
                           type="number"
@@ -2997,7 +3021,7 @@ export default function AdminDashboard() {
                             }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={6}>
+                      <Grid size={{ xs: 12, md: 6 }}>
                         <TextField
                           fullWidth
                           type="number"
@@ -3017,7 +3041,7 @@ export default function AdminDashboard() {
                             }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={6}>
+                      <Grid size={{ xs: 12, md: 6 }}>
                         <TextField
                           fullWidth
                           type="number"
@@ -3049,7 +3073,7 @@ export default function AdminDashboard() {
                         Define how much impact each dollar donated will create. This helps donors understand the value of their contribution.
                       </Typography>
                       <Grid container spacing={3}>
-                      <Grid item xs={12} md={2.4}>
+                      <Grid size={{ xs: 12, md: 2.4 }}>
                         <TextField
                           fullWidth
                           type="number"
@@ -3069,7 +3093,7 @@ export default function AdminDashboard() {
                             }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={2.4}>
+                      <Grid size={{ xs: 12, md: 2.4 }}>
                         <TextField
                           fullWidth
                           type="number"
@@ -3089,7 +3113,7 @@ export default function AdminDashboard() {
                             }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={2.4}>
+                      <Grid size={{ xs: 12, md: 2.4 }}>
                         <TextField
                           fullWidth
                           type="number"
@@ -3109,7 +3133,7 @@ export default function AdminDashboard() {
                             }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={2.4}>
+                      <Grid size={{ xs: 12, md: 2.4 }}>
                         <TextField
                           fullWidth
                           type="number"
@@ -3129,7 +3153,7 @@ export default function AdminDashboard() {
                             }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={2.4}>
+                      <Grid size={{ xs: 12, md: 2.4 }}>
                         <TextField
                           fullWidth
                           type="number"
@@ -3220,7 +3244,7 @@ export default function AdminDashboard() {
                       Create predefined donation amounts that donors can choose from. These options make it easier for donors to contribute and understand the impact of their donation.
                     </Typography>
                     <Grid container spacing={3}>
-                      <Grid item xs={12}>
+                      <Grid size={12}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                           <Typography variant="h6" sx={{ fontWeight: 600, color: 'var(--primary-green)' }}>
                             Predefined Donation Amounts
@@ -3282,7 +3306,7 @@ export default function AdminDashboard() {
                               }
                             }}>
                               <Grid container spacing={2} alignItems="center">
-                                <Grid item xs={12} sm={3}>
+                                <Grid size={{ xs: 12, sm: 3 }}>
                                   <TextField
                                     fullWidth
                                     label="Amount"
@@ -3304,7 +3328,7 @@ export default function AdminDashboard() {
                                     }}
                                   />
                                 </Grid>
-                                <Grid item xs={12} sm={4}>
+                                <Grid size={{ xs: 12, sm: 4 }}>
                                   <TextField
                                     fullWidth
                                     label="Description"
@@ -3322,7 +3346,7 @@ export default function AdminDashboard() {
                                     }}
                                   />
                                 </Grid>
-                                <Grid item xs={12} sm={4}>
+                                <Grid size={{ xs: 12, sm: 4 }}>
                                   <TextField
                                     fullWidth
                                     label="Impact Description"
@@ -3340,7 +3364,7 @@ export default function AdminDashboard() {
                                     }}
                                   />
                                 </Grid>
-                                <Grid item xs={12} sm={1}>
+                                <Grid size={{ xs: 12, sm: 1 }}>
                                   {dialogType !== 'view' && (
                                     <IconButton
                                       onClick={() => removeDonationOption(option.id)}
@@ -3362,7 +3386,7 @@ export default function AdminDashboard() {
                         )}
                       </Grid>
                       
-                      <Grid item xs={12}>
+                      <Grid size={12}>
                         <Box sx={{ 
                           p: 3, 
                           bgcolor: 'rgba(0,255,140,0.05)', 
@@ -3396,7 +3420,7 @@ export default function AdminDashboard() {
               <Box sx={{ pt: 2 }}>
                 <Grid container spacing={2}>
                   {/* Personal Information */}
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                       fullWidth
                       label="First Name"
@@ -3406,7 +3430,7 @@ export default function AdminDashboard() {
                       required={dialogType === 'create'}
                     />
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                       fullWidth
                       label="Last Name"
@@ -3416,7 +3440,7 @@ export default function AdminDashboard() {
                       required={dialogType === 'create'}
                     />
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                       fullWidth
                       label="Email"
@@ -3427,7 +3451,7 @@ export default function AdminDashboard() {
                       type="email"
                     />
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                       fullWidth
                       label="Phone"
@@ -3437,7 +3461,7 @@ export default function AdminDashboard() {
                       required={dialogType === 'create'}
                     />
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                       fullWidth
                       label="Age"
@@ -3448,7 +3472,7 @@ export default function AdminDashboard() {
                       type="number"
                     />
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <FormControl fullWidth>
                       <InputLabel shrink>Location</InputLabel>
                       <Select
@@ -3474,7 +3498,7 @@ export default function AdminDashboard() {
                       </Select>
                     </FormControl>
                   </Grid>
-                  <Grid item xs={12}>
+                  <Grid size={12}>
                     <FormControl fullWidth>
                       <InputLabel shrink>Skills</InputLabel>
                       <Select
@@ -3507,7 +3531,7 @@ export default function AdminDashboard() {
                       </Select>
                     </FormControl>
                   </Grid>
-                  <Grid item xs={12}>
+                  <Grid size={12}>
                     <TextField
                       fullWidth
                       multiline
@@ -3519,7 +3543,7 @@ export default function AdminDashboard() {
                       required={dialogType === 'create'}
                     />
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <FormControl fullWidth>
                       <InputLabel shrink>Availability</InputLabel>
                       <Select
@@ -3545,7 +3569,7 @@ export default function AdminDashboard() {
                       </Select>
                     </FormControl>
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <FormControl fullWidth>
                       <InputLabel shrink>Commitment</InputLabel>
                       <Select
@@ -3569,7 +3593,7 @@ export default function AdminDashboard() {
                       </Select>
                     </FormControl>
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                       fullWidth
                       label="Emergency Contact"
@@ -3579,7 +3603,7 @@ export default function AdminDashboard() {
                       required={dialogType === 'create'}
                     />
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                       fullWidth
                       label="Emergency Phone"
@@ -3589,7 +3613,7 @@ export default function AdminDashboard() {
                       required={dialogType === 'create'}
                     />
                   </Grid>
-                  <Grid item xs={12}>
+                  <Grid size={12}>
                     <TextField
                       fullWidth
                       multiline
@@ -3601,7 +3625,7 @@ export default function AdminDashboard() {
                       required={dialogType === 'create'}
                     />
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <FormControl fullWidth>
                       <InputLabel>Status</InputLabel>
                       <Select
@@ -3619,7 +3643,7 @@ export default function AdminDashboard() {
                     </FormControl>
                   </Grid>
                   {dialogType !== 'create' && (
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                       <TextField
                         fullWidth
                         label="Application Date"
@@ -3635,7 +3659,7 @@ export default function AdminDashboard() {
             {selectedItem?.type === 'donation' && (
               <Box sx={{ pt: 2 }}>
                 <Grid container spacing={2}>
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                       fullWidth
                       label="Donor Name"
@@ -3643,7 +3667,7 @@ export default function AdminDashboard() {
                       disabled
                     />
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                       fullWidth
                       label="Amount"
@@ -3651,7 +3675,7 @@ export default function AdminDashboard() {
                       disabled
                     />
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                       fullWidth
                       label="Program"
@@ -3659,7 +3683,7 @@ export default function AdminDashboard() {
                       disabled
                     />
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                       fullWidth
                       label="Payment Status"
@@ -3667,7 +3691,7 @@ export default function AdminDashboard() {
                       disabled
                     />
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                       fullWidth
                       label="Payment Method"
@@ -3675,7 +3699,7 @@ export default function AdminDashboard() {
                       disabled
                     />
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                       fullWidth
                       label="Date"
@@ -3683,7 +3707,7 @@ export default function AdminDashboard() {
                       disabled
                     />
                   </Grid>
-                  <Grid item xs={12}>
+                  <Grid size={12}>
                     <TextField
                       fullWidth
                       multiline
@@ -3694,7 +3718,7 @@ export default function AdminDashboard() {
                     />
                   </Grid>
                   {selectedItem.data?.anonymous === false && (
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                       <TextField
                         fullWidth
                         label="Donor Email"
@@ -3767,7 +3791,7 @@ export default function AdminDashboard() {
           <DialogContent>
             <Box sx={{ pt: 2 }}>
               <Grid container spacing={2}>
-                <Grid item xs={12}>
+                <Grid size={12}>
                   <TextField
                     fullWidth
                     label="Subject"
@@ -3777,7 +3801,7 @@ export default function AdminDashboard() {
                     required
                   />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={12}>
                   <TextField
                     fullWidth
                     multiline
@@ -3790,7 +3814,7 @@ export default function AdminDashboard() {
                     helperText="You can use HTML tags for formatting"
                   />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={12}>
                   <Alert severity="info">
                     This newsletter will be sent to {newsletterStats.totalSubscribers} active subscribers.
                   </Alert>

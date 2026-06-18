@@ -2,6 +2,8 @@ const nodemailer = require('nodemailer');
 const handlebars = require('handlebars');
 const fs = require('fs').promises;
 const path = require('path');
+const { SUPPORT_EMAIL, SUPPORT_ADDRESS } = require('../constants/contact');
+const { buildClientUrl } = require('../utils/clientUrls');
 
 class EmailService {
   constructor() {
@@ -173,11 +175,11 @@ class EmailService {
           <p style="text-align: center; margin: 30px 0;">
             <a href="{{dashboardUrl}}" class="button">Visit Your Dashboard</a>
           </p>
-          <p>If you have any questions, feel free to reach out to us at forest13hils@gmail.com</p>
+          <p>If you have any questions, feel free to reach out to us at ${SUPPORT_EMAIL}</p>
         </div>
         <div class="footer">
           <p>© 2025 Gifted givings. All rights reserved.</p>
-          <p>50 Camden st, Methuen, MA 01844</p>
+          <p>${SUPPORT_ADDRESS}</p>
         </div>
       </div>
     </body>
@@ -348,7 +350,7 @@ class EmailService {
         </div>
         <div class="footer">
           <p>© 2025 Gifted givings. All rights reserved.</p>
-          <p>Questions? Contact us at giftedhands1256@gmail.com</p>
+          <p>Questions? Contact us at ${SUPPORT_EMAIL}</p>
         </div>
       </div>
     </body>
@@ -514,7 +516,7 @@ class EmailService {
   }
 
   async sendPasswordResetEmail(email, resetToken) {
-    const resetUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+    const resetUrl = buildClientUrl('/reset-password', resetToken);
     return this.sendEmail({
       to: email,
       subject: 'Password Reset Request',
@@ -534,6 +536,25 @@ class EmailService {
         programName: donation.program?.name || 'General Fund',
         transactionId: donation._id,
         date: new Date(donation.createdAt).toLocaleDateString()
+      }
+    });
+  }
+
+  async sendAdminDonationNotification(donation, adminEmail) {
+    const donorLabel = donation.anonymous
+      ? 'Anonymous donor'
+      : `${donation.donor?.firstName || ''} ${donation.donor?.lastName || ''}`.trim() || donation.donor?.email || 'Unknown';
+
+    return this.sendEmail({
+      to: adminEmail,
+      subject: `New donation received: $${donation.amount}`,
+      template: 'donation-confirmation',
+      context: {
+        donorName: donorLabel,
+        amount: donation.amount,
+        programName: donation.program?.name || 'General Fund',
+        transactionId: donation._id,
+        date: new Date(donation.createdAt || Date.now()).toLocaleDateString()
       }
     });
   }

@@ -241,122 +241,74 @@ class StripeService {
     }
   }
 
+  // Send donor confirmation and optional admin alert after a completed donation
+  static async sendDonationNotifications(donationId) {
+    const Donation = require('../models/Donation');
+    const emailService = require('./emailService');
+
+    const populated = await Donation.findById(donationId)
+      .populate('donor', 'firstName lastName email')
+      .populate('program', 'name category image');
+
+    if (!populated) return;
+
+    if (populated.donor?.email && !populated.anonymous) {
+      try {
+        await emailService.sendDonationConfirmationEmail(populated);
+        console.log(`📧 Donation confirmation sent to ${populated.donor.email}`);
+      } catch (emailError) {
+        console.error('Failed to send donation confirmation email:', emailError);
+      }
+    }
+
+    const adminEmail = process.env.ADMIN_EMAIL || process.env.SMTP_USER;
+    if (adminEmail) {
+      try {
+        await emailService.sendAdminDonationNotification(populated, adminEmail);
+        console.log(`📧 Admin donation alert sent to ${adminEmail}`);
+      } catch (emailError) {
+        console.error('Failed to send admin donation notification:', emailError);
+      }
+    }
+  }
+
+  // Mark an existing donation completed (idempotent) and notify
+  static async markDonationCompleted(donation, paymentIntentId) {
+    if (donation.paymentStatus === 'completed') {
+      return donation;
+    }
+
+    donation.paymentStatus = 'completed';
+    donation.transactionId = paymentIntentId;
+    if (!donation.stripePaymentIntentId) {
+      donation.stripePaymentIntentId = paymentIntentId;
+    }
+    donation.updatedAt = new Date();
+    await donation.save();
+
+    await this.sendDonationNotifications(donation._id);
+    return donation;
+  }
+
   // Handle successful payment
   static async handlePaymentSuccess(paymentIntent) {
     try {
       console.log(`💰 Processing successful payment: ${paymentIntent.id}`);
-      console.log(`💵 Payment amount: ${paymentIntent.amount / 100} ${paymentIntent.currency}`);
-      console.log(`💳 Payment method: ${paymentIntent.payment_method_types.join(', ')}`);
-      console.log(`📝 Payment metadata:`, paymentIntent.metadata);
-      
-      // Update donation status in database
+
       const Donation = require('../models/Donation');
-      const Program = require('../models/Program');
-      
-      console.log(`🔍 Looking for donation with payment intent ID: ${paymentIntent.id}`);
-      
-      const donation = await Donation.findOneAndUpdate(
-        { stripePaymentIntentId: paymentIntent.id },
-        { 
-          paymentStatus: 'completed',
-          transactionId: paymentIntent.id,
-          updatedAt: new Date()
-        },
-        { new: true }
-      );
+
+      let donation = await Donation.findOne({ stripePaymentIntentId: paymentIntent.id });
 
       if (donation) {
-        console.log(`✅ Payment completed for donation: ${donation._id}`);
-        console.log(`💰 Amount: ${donation.amount} ${donation.currency}`);
-        console.log(`📊 Program ID: ${donation.program}`);
-        
-        // Update program current amount and impact metrics
-        const program = await Program.findById(donation.program);
-        if (program && program.impactPerDollar) {
-          // Calculate impact based on donation amount and impact per dollar
-          const impact = program.impactPerDollar;
-          const children = Math.floor(donation.amount * (impact.children || 0));
-          const communities = Math.floor(donation.amount * (impact.communities || 0));
-          const schools = Math.floor(donation.amount * (impact.schools || 0));
-          const meals = Math.floor(donation.amount * (impact.meals || 0));
-          const checkups = Math.floor(donation.amount * (impact.checkups || 0));
-          
-          const programUpdate = await Program.findByIdAndUpdate(donation.program, {
-            $inc: { 
-              currentAmount: donation.amount,
-              'impactMetrics.childrenHelped': children,
-              'impactMetrics.communitiesReached': communities,
-              'impactMetrics.schoolsBuilt': schools,
-              'impactMetrics.mealsProvided': meals,
-              'impactMetrics.medicalCheckups': checkups
-            }
-          }, { new: true });
-          
-          console.log(`✅ Updated program current amount and impact metrics for donation ${donation._id}`);
-          console.log(`📈 Program current amount: ${programUpdate?.currentAmount || 'Unknown'}`);
-          console.log(`👥 Impact added: ${children} children, ${communities} communities, ${schools} schools, ${meals} meals, ${checkups} checkups`);
-        } else {
-          // Just update current amount if no impact per dollar data
-          const programUpdate = await Program.findByIdAndUpdate(donation.program, {
-            $inc: { currentAmount: donation.amount }
-          }, { new: true });
-          
-          console.log(`✅ Updated program current amount for donation ${donation._id}`);
-          console.log(`📈 Program current amount: ${programUpdate?.currentAmount || 'Unknown'}`);
+        donation = await this.markDonationCompleted(donation, paymentIntent.id);
+      } else if (paymentIntent.metadata?.donationId) {
+        console.log(`🔍 Trying donation by metadata ID: ${paymentIntent.metadata.donationId}`);
+        donation = await Donation.findById(paymentIntent.metadata.donationId);
+        if (donation) {
+          donation = await this.markDonationCompleted(donation, paymentIntent.id);
         }
-        
-        // TODO: Send confirmation email
-        // TODO: Send notification to admin
       } else {
         console.warn(`⚠️ No donation found for payment intent: ${paymentIntent.id}`);
-        console.warn(`🔍 Searched for stripePaymentIntentId: ${paymentIntent.id}`);
-        
-        // Let's also try to find by metadata
-        if (paymentIntent.metadata && paymentIntent.metadata.donationId) {
-          console.log(`🔍 Trying to find donation by metadata ID: ${paymentIntent.metadata.donationId}`);
-          const donationByMetadata = await Donation.findById(paymentIntent.metadata.donationId);
-          if (donationByMetadata) {
-            console.log(`✅ Found donation by metadata: ${donationByMetadata._id}`);
-            // Update this donation
-            donationByMetadata.paymentStatus = 'completed';
-            donationByMetadata.transactionId = paymentIntent.id;
-            donationByMetadata.updatedAt = new Date();
-            await donationByMetadata.save();
-            
-            // Update program current amount and impact metrics
-            const program = await Program.findById(donationByMetadata.program);
-            if (program && program.impactPerDollar) {
-              // Calculate impact based on donation amount and impact per dollar
-              const impact = program.impactPerDollar;
-              const children = Math.floor(donationByMetadata.amount * (impact.children || 0));
-              const communities = Math.floor(donationByMetadata.amount * (impact.communities || 0));
-              const schools = Math.floor(donationByMetadata.amount * (impact.schools || 0));
-              const meals = Math.floor(donationByMetadata.amount * (impact.meals || 0));
-              const checkups = Math.floor(donationByMetadata.amount * (impact.checkups || 0));
-              
-              await Program.findByIdAndUpdate(donationByMetadata.program, {
-                $inc: { 
-                  currentAmount: donationByMetadata.amount,
-                  'impactMetrics.childrenHelped': children,
-                  'impactMetrics.communitiesReached': communities,
-                  'impactMetrics.schoolsBuilt': schools,
-                  'impactMetrics.mealsProvided': meals,
-                  'impactMetrics.medicalCheckups': checkups
-                }
-              });
-              
-              console.log(`✅ Updated program metrics via metadata: ${children} children, ${communities} communities, ${schools} schools, ${meals} meals, ${checkups} checkups`);
-            } else {
-              // Just update current amount if no impact per dollar data
-              await Program.findByIdAndUpdate(donationByMetadata.program, {
-                $inc: { currentAmount: donationByMetadata.amount }
-              });
-            }
-            
-            console.log(`✅ Updated donation via metadata: ${donationByMetadata._id}`);
-            return { status: 'success', donation: donationByMetadata, paymentIntent };
-          }
-        }
       }
 
       return { status: 'success', donation, paymentIntent };
@@ -400,7 +352,6 @@ class StripeService {
       console.log(`Amount: ${invoice.amount_paid / 100} ${invoice.currency}`);
       
       const Donation = require('../models/Donation');
-      const Program = require('../models/Program');
       const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
       
       // Retrieve the subscription to get metadata
@@ -440,7 +391,6 @@ class StripeService {
       const isFirstPayment = originalDonation.paymentStatus === 'pending';
       
       if (isFirstPayment) {
-        // Update the original donation record as completed
         originalDonation.paymentStatus = 'completed';
         originalDonation.transactionId = invoice.payment_intent;
         originalDonation.stripePaymentIntentId = invoice.payment_intent;
@@ -448,38 +398,11 @@ class StripeService {
         originalDonation.recurring.nextPaymentDate = this.calculateNextPaymentDate(originalDonation.recurring.frequency);
         await originalDonation.save();
         console.log(`✅ Updated original donation to completed: ${originalDonation._id}`);
-        
-        // Update program current amount and impact metrics for first payment
-        const program = await Program.findById(originalDonation.program);
-        if (program && program.impactPerDollar) {
-          const impact = program.impactPerDollar;
-          const amount = originalDonation.amount;
-          const children = Math.floor(amount * (impact.children || 0));
-          const communities = Math.floor(amount * (impact.communities || 0));
-          const schools = Math.floor(amount * (impact.schools || 0));
-          const meals = Math.floor(amount * (impact.meals || 0));
-          const checkups = Math.floor(amount * (impact.checkups || 0));
-          
-          await Program.findByIdAndUpdate(originalDonation.program, {
-            $inc: { 
-              currentAmount: amount,
-              'impactMetrics.childrenHelped': children,
-              'impactMetrics.communitiesReached': communities,
-              'impactMetrics.schoolsBuilt': schools,
-              'impactMetrics.mealsProvided': meals,
-              'impactMetrics.medicalCheckups': checkups
-            }
-          });
-          
-          console.log(`✅ Updated program metrics for first payment`);
-        } else {
-          await Program.findByIdAndUpdate(originalDonation.program, {
-            $inc: { currentAmount: originalDonation.amount }
-          });
-        }
-        
-        return { 
-          status: 'success', 
+
+        await this.sendDonationNotifications(originalDonation._id);
+
+        return {
+          status: 'success',
           subscription: invoice.subscription,
           donation: originalDonation,
           isFirstPayment: true
@@ -515,42 +438,14 @@ class StripeService {
       const newDonation = new Donation(newDonationData);
       await newDonation.save();
       console.log(`✅ Created new donation record for recurring payment: ${newDonation._id}`);
-      
-      // Update the original donation's total payments count
+
       originalDonation.recurring.totalPayments = (originalDonation.recurring.totalPayments || 0) + 1;
       originalDonation.recurring.nextPaymentDate = this.calculateNextPaymentDate(originalDonation.recurring.frequency);
       await originalDonation.save();
-      
-      // Update program current amount and impact metrics
-      const program = await Program.findById(originalDonation.program);
-      if (program && program.impactPerDollar) {
-        const impact = program.impactPerDollar;
-        const amount = newDonation.amount;
-        const children = Math.floor(amount * (impact.children || 0));
-        const communities = Math.floor(amount * (impact.communities || 0));
-        const schools = Math.floor(amount * (impact.schools || 0));
-        const meals = Math.floor(amount * (impact.meals || 0));
-        const checkups = Math.floor(amount * (impact.checkups || 0));
-        
-        await Program.findByIdAndUpdate(originalDonation.program, {
-          $inc: { 
-            currentAmount: amount,
-            'impactMetrics.childrenHelped': children,
-            'impactMetrics.communitiesReached': communities,
-            'impactMetrics.schoolsBuilt': schools,
-            'impactMetrics.mealsProvided': meals,
-            'impactMetrics.medicalCheckups': checkups
-          }
-        });
-        
-        console.log(`✅ Updated program metrics: ${children} children, ${communities} communities, etc.`);
-      } else {
-        await Program.findByIdAndUpdate(originalDonation.program, {
-          $inc: { currentAmount: newDonation.amount }
-        });
-      }
-      
-      return { 
+
+      await this.sendDonationNotifications(newDonation._id);
+
+      return {
         status: 'success', 
         subscription: invoice.subscription,
         donation: newDonation,

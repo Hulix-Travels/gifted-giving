@@ -2,8 +2,8 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const Donation = require('../models/Donation');
 const Program = require('../models/Program');
-const { auth, optionalAuth } = require('../middleware/auth');
-const emailService = require('../services/emailService');
+const { auth, optionalAuth, adminAuth } = require('../middleware/auth');
+const { parsePagination } = require('../utils/pagination');
 const router = express.Router();
 
 const NodeCache = require('node-cache');
@@ -97,17 +97,6 @@ router.post('/', [
     // Populate program details
     await donation.populate('program', 'name category image');
 
-    // Send donation confirmation email if user is authenticated
-    if (req.user) {
-      try {
-        await donation.populate('donor', 'firstName lastName email');
-        await emailService.sendDonationConfirmationEmail(donation);
-      } catch (emailError) {
-        console.error('Failed to send donation confirmation email:', emailError);
-        // Don't fail the donation if email fails
-      }
-    }
-
     res.status(201).json({
       message: 'Donation created successfully',
       donation: {
@@ -135,7 +124,8 @@ router.post('/', [
 // @access  Private
 router.get('/', auth, async (req, res) => {
   try {
-    const { page = 1, limit = 10, status } = req.query;
+    const { status } = req.query;
+    const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 10 });
     
     const query = { donor: req.user.id };
     if (status) {
@@ -145,8 +135,8 @@ router.get('/', auth, async (req, res) => {
     const donations = await Donation.find(query)
       .populate('program', 'name category image')
       .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
+      .limit(limit)
+      .skip(skip)
       .exec();
 
     const total = await Donation.countDocuments(query);
@@ -174,7 +164,8 @@ router.get('/all', auth, async (req, res) => {
       return res.status(403).json({ message: 'Access denied. Admin privileges required.' });
     }
 
-    const { page = 1, limit = 50, status, programId } = req.query;
+    const { status, programId } = req.query;
+    const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 50 });
     
     const query = {};
     if (status) {
@@ -188,8 +179,8 @@ router.get('/all', auth, async (req, res) => {
       .populate('program', 'name category image')
       .populate('donor', 'firstName lastName email')
       .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
+      .limit(limit)
+      .skip(skip)
       .exec();
 
     const total = await Donation.countDocuments(query);
@@ -203,6 +194,158 @@ router.get('/all', auth, async (req, res) => {
 
   } catch (error) {
     console.error('Get all donations error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   GET /api/donations/stats/overview
+// @desc    Get donation statistics
+// @access  Public
+router.get('/stats/overview', async (req, res) => {
+  try {
+    const cached = statsCache.get('donations_stats_overview');
+    if (cached) {
+      return res.json(cached);
+    }
+
+    const comprehensiveStats = await Donation.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalDonations: { $sum: 1 },
+          totalAmount: { $sum: '$amount' },
+          completedDonations: {
+            $sum: { $cond: [{ $eq: ['$paymentStatus', 'completed'] }, 1, 0] }
+          },
+          completedAmount: {
+            $sum: { $cond: [{ $eq: ['$paymentStatus', 'completed'] }, '$amount', 0] }
+          },
+          pendingDonations: {
+            $sum: { $cond: [{ $eq: ['$paymentStatus', 'pending'] }, 1, 0] }
+          },
+          failedDonations: {
+            $sum: { $cond: [{ $eq: ['$paymentStatus', 'failed'] }, 1, 0] }
+          }
+        }
+      }
+    ]);
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const monthlyStats = await Donation.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: thirtyDaysAgo },
+          paymentStatus: 'completed'
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          monthlyRevenue: { $sum: '$amount' },
+          monthlyDonations: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const stats = comprehensiveStats[0] || {
+      totalDonations: 0,
+      totalAmount: 0,
+      completedDonations: 0,
+      completedAmount: 0
+    };
+
+    const monthly = monthlyStats[0] || {
+      monthlyRevenue: 0,
+      monthlyDonations: 0
+    };
+
+    const recentDonations = await Donation.find({ paymentStatus: 'completed' })
+      .populate('program', 'name category')
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean();
+
+    const topPrograms = await Donation.aggregate([
+      { $match: { paymentStatus: 'completed' } },
+      {
+        $group: {
+          _id: '$program',
+          totalAmount: { $sum: '$amount' },
+          donationCount: { $sum: 1 }
+        }
+      },
+      { $sort: { totalAmount: -1 } },
+      { $limit: 5 }
+    ]);
+
+    let topProgramsWithDetails = await Program.populate(topPrograms, {
+      path: '_id',
+      select: 'name category image'
+    });
+    if (Array.isArray(topProgramsWithDetails)) {
+      topProgramsWithDetails = topProgramsWithDetails.map(item => (item && typeof item.toObject === 'function' ? item.toObject() : item));
+    }
+
+    const response = {
+      stats: {
+        totalDonations: stats.completedDonations,
+        totalAmount: stats.completedAmount,
+        completedDonations: stats.completedDonations,
+        completedAmount: stats.completedAmount,
+        monthlyRevenue: monthly.monthlyRevenue,
+        monthlyDonations: monthly.monthlyDonations,
+        avgDonation: stats.completedDonations > 0 ? stats.completedAmount / stats.completedDonations : 0
+      },
+      recentDonations: deepToObject(recentDonations),
+      topPrograms: deepToObject(topProgramsWithDetails)
+    };
+
+    statsCache.set('donations_stats_overview', response);
+    res.json(response);
+  } catch (error) {
+    console.error('Get donation stats error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   GET /api/donations/program/:programId
+// @desc    Get donations for a specific program
+// @access  Public
+router.get('/program/:programId', async (req, res) => {
+  try {
+    const { programId } = req.params;
+    const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 10 });
+
+    const program = await Program.findById(programId);
+    if (!program) {
+      return res.status(404).json({ message: 'Program not found' });
+    }
+
+    const donations = await Donation.find({
+      program: programId,
+      paymentStatus: 'completed'
+    })
+      .populate('donor', 'firstName lastName')
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .skip(skip)
+      .exec();
+
+    const total = await Donation.countDocuments({
+      program: programId,
+      paymentStatus: 'completed'
+    });
+
+    res.json({
+      donations,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      totalDonations: total
+    });
+  } catch (error) {
+    console.error('Get program donations error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -236,7 +379,7 @@ router.get('/:id', auth, async (req, res) => {
 // @route   PUT /api/donations/:id/status
 // @desc    Update donation payment status
 // @access  Private (Admin only)
-router.put('/:id/status', auth, async (req, res) => {
+router.put('/:id/status', adminAuth, async (req, res) => {
   try {
     const { status } = req.body;
 
@@ -247,11 +390,6 @@ router.put('/:id/status', auth, async (req, res) => {
     const donation = await Donation.findById(req.params.id);
     if (!donation) {
       return res.status(404).json({ message: 'Donation not found' });
-    }
-
-    // Only allow status updates if user is admin or the donation belongs to them
-    if (donation.donor.toString() !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Access denied' });
     }
 
     donation.paymentStatus = status;
@@ -274,169 +412,6 @@ router.put('/:id/status', auth, async (req, res) => {
 
   } catch (error) {
     console.error('Update donation status error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// @route   GET /api/donations/stats/overview
-// @desc    Get donation statistics
-// @access  Public
-router.get('/stats/overview', async (req, res) => {
-  try {
-    // Check cache first
-    const cached = statsCache.get('donations_stats_overview');
-    if (cached) {
-      return res.json(cached);
-    }
-
-    // Get comprehensive stats for admin dashboard
-    const comprehensiveStats = await Donation.aggregate([
-      {
-        $group: {
-          _id: null,
-          totalDonations: { $sum: 1 },
-          totalAmount: { $sum: '$amount' },
-          completedDonations: {
-            $sum: { $cond: [{ $eq: ['$paymentStatus', 'completed'] }, 1, 0] }
-          },
-          completedAmount: {
-            $sum: { $cond: [{ $eq: ['$paymentStatus', 'completed'] }, '$amount', 0] }
-          },
-          pendingDonations: {
-            $sum: { $cond: [{ $eq: ['$paymentStatus', 'pending'] }, 1, 0] }
-          },
-          failedDonations: {
-            $sum: { $cond: [{ $eq: ['$paymentStatus', 'failed'] }, 1, 0] }
-          }
-        }
-      }
-    ]);
-
-    // Get monthly revenue (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const monthlyStats = await Donation.aggregate([
-      {
-        $match: {
-          createdAt: { $gte: thirtyDaysAgo },
-          paymentStatus: 'completed'
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          monthlyRevenue: { $sum: '$amount' },
-          monthlyDonations: { $sum: 1 }
-        }
-      }
-    ]);
-
-    const stats = comprehensiveStats[0] || {
-      totalDonations: 0,
-      totalAmount: 0,
-      completedDonations: 0,
-      completedAmount: 0,
-      pendingDonations: 0,
-      failedDonations: 0
-    };
-
-    const monthly = monthlyStats[0] || {
-      monthlyRevenue: 0,
-      monthlyDonations: 0
-    };
-    
-    // Get recent donations
-    const recentDonations = await Donation.find({ paymentStatus: 'completed' })
-      .populate('program', 'name category')
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .lean(); // Ensure plain JS objects for caching
-
-    // Get top programs by donations
-    const topPrograms = await Donation.aggregate([
-      { $match: { paymentStatus: 'completed' } },
-      {
-        $group: {
-          _id: '$program',
-          totalAmount: { $sum: '$amount' },
-          donationCount: { $sum: 1 }
-        }
-      },
-      { $sort: { totalAmount: -1 } },
-      { $limit: 5 }
-    ]);
-
-    // Populate program details for top programs
-    let topProgramsWithDetails = await Program.populate(topPrograms, {
-      path: '_id',
-      select: 'name category image'
-    });
-    // Ensure plain JS objects for caching
-    if (Array.isArray(topProgramsWithDetails)) {
-      topProgramsWithDetails = topProgramsWithDetails.map(item => (item && typeof item.toObject === 'function' ? item.toObject() : item));
-    }
-
-    const response = {
-      stats: {
-        ...stats,
-        monthlyRevenue: monthly.monthlyRevenue,
-        monthlyDonations: monthly.monthlyDonations,
-        avgDonation: stats.totalDonations > 0 ? stats.totalAmount / stats.totalDonations : 0
-      },
-      recentDonations: deepToObject(recentDonations),
-      topPrograms: deepToObject(topProgramsWithDetails)
-    };
-
-    // Cache the result
-    statsCache.set('donations_stats_overview', response);
-
-    res.json(response);
-
-  } catch (error) {
-    console.error('Get donation stats error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// @route   GET /api/donations/program/:programId
-// @desc    Get donations for a specific program
-// @access  Public
-router.get('/program/:programId', async (req, res) => {
-  try {
-    const { page = 1, limit = 10 } = req.query;
-    const { programId } = req.params;
-
-    // Check if program exists
-    const program = await Program.findById(programId);
-    if (!program) {
-      return res.status(404).json({ message: 'Program not found' });
-    }
-
-    const donations = await Donation.find({ 
-      program: programId,
-      paymentStatus: 'completed'
-    })
-      .populate('donor', 'firstName lastName')
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .exec();
-
-    const total = await Donation.countDocuments({ 
-      program: programId,
-      paymentStatus: 'completed'
-    });
-
-    res.json({
-      donations,
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
-      totalDonations: total
-    });
-
-  } catch (error) {
-    console.error('Get program donations error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

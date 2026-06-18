@@ -27,6 +27,9 @@ export const AuthProvider = ({ children }) => {
         })
         .catch(err => {
           localStorage.removeItem(AUTH_STORAGE_KEY);
+          if (err.status === 401) {
+            setUser(null);
+          }
         })
         .finally(() => {
           setLoading(false);
@@ -53,8 +56,7 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       const data = await authAPI.register(userData);
-      localStorage.setItem(AUTH_STORAGE_KEY, data.token);
-      setUser(data.user);
+      // No token until email is verified — do not persist auth state
       return data;
     } catch (err) {
       setError(err.message);
@@ -93,7 +95,10 @@ export const AuthProvider = ({ children }) => {
   const resetPassword = async (token, password) => {
     try {
       setError(null);
-      return await authAPI.resetPassword(token, password);
+      const data = await authAPI.resetPassword(token, password);
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      setUser(null);
+      return data;
     } catch (err) {
       setError(err.message);
       throw err;

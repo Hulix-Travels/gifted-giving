@@ -330,7 +330,7 @@ export default function UserDashboard() {
 
         {/* Impact Summary Cards */}
         <Grid container spacing={3} sx={{ mb: 6 }} justifyContent="center">
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card sx={{
               background: 'white',
               borderRadius: 3,
@@ -354,7 +354,7 @@ export default function UserDashboard() {
           </Card>
         </Grid>
           
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card sx={{
               background: 'white',
               borderRadius: 3,
@@ -378,7 +378,7 @@ export default function UserDashboard() {
           </Card>
         </Grid>
           
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card sx={{
               background: 'white',
               borderRadius: 3,
@@ -402,7 +402,7 @@ export default function UserDashboard() {
             </Card>
             </Grid>
           
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <Card sx={{
               background: 'white',
               borderRadius: 3,
@@ -429,7 +429,7 @@ export default function UserDashboard() {
         {/* Main Content Grid */}
         <Grid container spacing={4} justifyContent="center">
           {/* Profile Information */}
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <Card sx={{
               background: 'white',
               borderRadius: 3,
@@ -543,7 +543,7 @@ export default function UserDashboard() {
             </Card>
           </Grid>
           {/* Donation History */}
-          <Grid item xs={12} md={8}>
+          <Grid size={{ xs: 12, md: 8 }}>
             <Card sx={{
               background: 'white',
               borderRadius: 3,
@@ -762,7 +762,7 @@ export default function UserDashboard() {
         {/* Recurring Donations Section */}
         {subscriptions.length > 0 && (
           <Grid container spacing={4} justifyContent="center" sx={{ mt: 2 }}>
-            <Grid item xs={12}>
+            <Grid size={12}>
               <Card sx={{
                 background: 'white',
                 borderRadius: 3,

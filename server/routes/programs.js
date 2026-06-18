@@ -1,17 +1,17 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const Program = require('../models/Program');
-const { auth, adminAuth } = require('../middleware/auth');
+const { auth, adminAuth, optionalAuth } = require('../middleware/auth');
+const { parsePagination } = require('../utils/pagination');
+const { pickProgramFields, generateProgramSlug, PROGRAM_SORT_FIELDS } = require('../utils/programFields');
 const router = express.Router();
 
 // @route   GET /api/programs
 // @desc    Get all programs with filtering and pagination
 // @access  Public
-router.get('/', async (req, res) => {
+router.get('/', optionalAuth, async (req, res) => {
   try {
     const {
-      page = 1,
-      limit = 12,
       category,
       status = 'active',
       featured,
@@ -20,31 +20,32 @@ router.get('/', async (req, res) => {
       sortOrder = 'desc'
     } = req.query;
 
-    // Build query
+    const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 12 });
+
     const query = {};
     if (category) query.category = category;
-    if (status) query.status = status;
+
+    if (req.user?.role === 'admin') {
+      if (status) query.status = status;
+    } else {
+      const publicStatuses = ['active', 'upcoming', 'completed'];
+      query.status = publicStatuses.includes(status) ? status : 'active';
+    }
+
     if (featured === 'true') query.featured = true;
     if (search) {
       query.$text = { $search: search };
     }
 
-    console.log('Programs query:', query);
-    console.log('Status filter:', status);
-
-    // Build sort object
-    const sort = {};
-    sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+    const sortField = PROGRAM_SORT_FIELDS.includes(sortBy) ? sortBy : 'createdAt';
+    const sort = { [sortField]: sortOrder === 'desc' ? -1 : 1 };
 
     const programs = await Program.find(query)
       .populate('createdBy', 'firstName lastName')
       .sort(sort)
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
+      .limit(limit)
+      .skip(skip)
       .exec();
-
-    console.log('Found programs:', programs.length);
-    console.log('Program statuses:', programs.map(p => ({ name: p.name, status: p.status })));
 
     const total = await Program.countDocuments(query);
 
@@ -63,22 +64,88 @@ router.get('/', async (req, res) => {
   }
 });
 
-// @route   GET /api/programs/:id
-// @desc    Get specific program details
+// @route   GET /api/programs/categories
+// @desc    Get all program categories
 // @access  Public
-router.get('/:id', async (req, res) => {
+router.get('/categories', async (req, res) => {
   try {
-    const program = await Program.findById(req.params.id)
-      .populate('createdBy', 'firstName lastName');
-
-    if (!program) {
-      return res.status(404).json({ message: 'Program not found' });
-    }
-
-    res.json({ program });
-
+    const categories = await Program.distinct('category');
+    res.json({ categories });
   } catch (error) {
-    console.error('Get program error:', error);
+    console.error('Get categories error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   GET /api/programs/featured
+// @desc    Get featured programs
+// @access  Public
+router.get('/featured', async (req, res) => {
+  try {
+    const programs = await Program.find({
+      featured: true,
+      status: 'active'
+    })
+      .populate('createdBy', 'firstName lastName')
+      .sort({ createdAt: -1 })
+      .limit(6);
+
+    res.json({ programs });
+  } catch (error) {
+    console.error('Get featured programs error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   GET /api/programs/stats/overview
+// @desc    Get program statistics
+// @access  Public
+router.get('/stats/overview', async (req, res) => {
+  try {
+    const stats = await Program.aggregate([
+      {
+        $group: {
+          _id: null,
+          totalPrograms: { $sum: 1 },
+          totalTargetAmount: { $sum: '$targetAmount' },
+          totalCurrentAmount: { $sum: '$currentAmount' },
+          avgProgress: { $avg: { $divide: ['$currentAmount', '$targetAmount'] } }
+        }
+      }
+    ]);
+
+    const categoryStats = await Program.aggregate([
+      {
+        $group: {
+          _id: '$category',
+          count: { $sum: 1 },
+          totalAmount: { $sum: '$currentAmount' }
+        }
+      },
+      { $sort: { count: -1 } }
+    ]);
+
+    const statusStats = await Program.aggregate([
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    res.json({
+      overall: stats[0] || {
+        totalPrograms: 0,
+        totalTargetAmount: 0,
+        totalCurrentAmount: 0,
+        avgProgress: 0
+      },
+      byCategory: categoryStats,
+      byStatus: statusStats
+    });
+  } catch (error) {
+    console.error('Get program stats error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -96,7 +163,6 @@ router.get('/slug/:slug', async (req, res) => {
     }
 
     res.json({ program });
-
   } catch (error) {
     console.error('Get program by slug error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -128,26 +194,16 @@ router.post('/', [
     }
 
     const programData = {
-      ...req.body,
+      ...pickProgramFields(req.body),
       createdBy: req.user.id
     };
 
-    console.log('Received program data:', programData);
-    console.log('Program name:', programData.name);
-
-    // Generate slug as a workaround in case pre-save hook fails
     if (programData.name) {
-      programData.slug = programData.name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
-      console.log('Generated slug in route:', programData.slug);
+      programData.slug = generateProgramSlug(programData.name);
     }
 
     const program = new Program(programData);
-    console.log('Program instance created, slug:', program.slug);
     await program.save();
-    console.log('Program saved successfully, final slug:', program.slug);
 
     await program.populate('createdBy', 'firstName lastName');
 
@@ -188,12 +244,12 @@ router.put('/:id', [
       return res.status(404).json({ message: 'Program not found' });
     }
 
-    // Update fields
-    Object.keys(req.body).forEach(key => {
-      if (req.body[key] !== undefined) {
-        program[key] = req.body[key];
-      }
-    });
+    const updates = pickProgramFields(req.body);
+    if (updates.name) {
+      updates.slug = generateProgramSlug(updates.name);
+    }
+
+    Object.assign(program, updates);
 
     await program.save();
     await program.populate('createdBy', 'firstName lastName');
@@ -288,107 +344,17 @@ router.delete('/:id', adminAuth, async (req, res) => {
   }
 });
 
-// @route   GET /api/programs/categories
-// @desc    Get all program categories
-// @access  Public
-router.get('/categories', async (req, res) => {
-  try {
-    const categories = await Program.distinct('category');
-    res.json({ categories });
-
-  } catch (error) {
-    console.error('Get categories error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// @route   GET /api/programs/featured
-// @desc    Get featured programs
-// @access  Public
-router.get('/featured', async (req, res) => {
-  try {
-    const programs = await Program.find({ 
-      featured: true, 
-      status: 'active' 
-    })
-      .populate('createdBy', 'firstName lastName')
-      .sort({ createdAt: -1 })
-      .limit(6);
-
-    res.json({ programs });
-
-  } catch (error) {
-    console.error('Get featured programs error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// @route   GET /api/programs/stats/overview
-// @desc    Get program statistics
-// @access  Public
-router.get('/stats/overview', async (req, res) => {
-  try {
-    const stats = await Program.aggregate([
-      {
-        $group: {
-          _id: null,
-          totalPrograms: { $sum: 1 },
-          totalTargetAmount: { $sum: '$targetAmount' },
-          totalCurrentAmount: { $sum: '$currentAmount' },
-          avgProgress: { $avg: { $divide: ['$currentAmount', '$targetAmount'] } }
-        }
-      }
-    ]);
-
-    const categoryStats = await Program.aggregate([
-      {
-        $group: {
-          _id: '$category',
-          count: { $sum: 1 },
-          totalAmount: { $sum: '$currentAmount' }
-        }
-      },
-      { $sort: { count: -1 } }
-    ]);
-
-    const statusStats = await Program.aggregate([
-      {
-        $group: {
-          _id: '$status',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-
-    res.json({
-      overall: stats[0] || {
-        totalPrograms: 0,
-        totalTargetAmount: 0,
-        totalCurrentAmount: 0,
-        avgProgress: 0
-      },
-      byCategory: categoryStats,
-      byStatus: statusStats
-    });
-
-  } catch (error) {
-    console.error('Get program stats error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
 // @route   POST /api/programs/recalculate-amounts
 // @desc    Recalculate current amounts for all programs based on completed donations
 // @access  Private (Admin only)
 router.post('/recalculate-amounts', adminAuth, async (req, res) => {
   try {
     const result = await Program.recalculateCurrentAmounts();
-    
+
     res.json({
       message: 'Program amounts recalculated successfully',
       ...result
     });
-
   } catch (error) {
     console.error('Recalculate amounts error:', error);
     res.status(500).json({ message: 'Server error during recalculation' });
@@ -401,18 +367,36 @@ router.post('/recalculate-amounts', adminAuth, async (req, res) => {
 router.post('/:id/recalculate-amount', adminAuth, async (req, res) => {
   try {
     const result = await Program.recalculateCurrentAmount(req.params.id);
-    
+
     res.json({
       message: 'Program amount recalculated successfully',
       ...result
     });
-
   } catch (error) {
     console.error('Recalculate amount error:', error);
     if (error.message === 'Program not found') {
       return res.status(404).json({ message: 'Program not found' });
     }
     res.status(500).json({ message: 'Server error during recalculation' });
+  }
+});
+
+// @route   GET /api/programs/:id
+// @desc    Get specific program details
+// @access  Public
+router.get('/:id', async (req, res) => {
+  try {
+    const program = await Program.findById(req.params.id)
+      .populate('createdBy', 'firstName lastName');
+
+    if (!program) {
+      return res.status(404).json({ message: 'Program not found' });
+    }
+
+    res.json({ program });
+  } catch (error) {
+    console.error('Get program error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

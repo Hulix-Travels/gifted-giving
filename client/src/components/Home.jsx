@@ -4,12 +4,11 @@ import Hero from './Hero';
 import About from './About';
 import Programs from './Programs';
 import Testimonials from './Testimonials';
-// import Partners from './Partners';
 import FAQ from './FAQ';
 import Newsletter from './Newsletter';
-import Volunteer from './Volunteer';
 import Donate from './Donate';
 import FeedbackForm from './FeedbackForm';
+import StickyDonateBar from './StickyDonateBar';
 
 export default function Home() {
   useEffect(() => {
@@ -38,17 +37,16 @@ export default function Home() {
   }, []);
 
   return (
-    <Box component="main" sx={{ flex: 1, mt: 8 }}>
+    <Box component="main" sx={{ flex: 1, mt: { xs: 7, md: 8 }, pb: { xs: 10, md: 0 }, backgroundColor: 'var(--cream)' }}>
       <Hero />
       <About />
       <Programs />
       <Donate />
       <Testimonials />
-      {/* <Partners /> */}
       <FAQ />
       <Newsletter />
-      <Volunteer />
       <FeedbackForm />
+      <StickyDonateBar />
     </Box>
   );
 } 

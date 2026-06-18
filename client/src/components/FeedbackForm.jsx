@@ -1,8 +1,16 @@
 import React, { useState } from 'react';
 import { Box, Button, TextField, Typography, Snackbar, Alert, Paper, Fab, Modal } from '@mui/material';
+import { useLocation } from 'react-router-dom';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
 import FeedbackIcon from '@mui/icons-material/Feedback';
+import { API_BASE_URL } from '../config/api';
 
 export default function FeedbackForm() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { pathname } = useLocation();
+  const onHomePage = pathname === '/';
   const [form, setForm] = useState({ name: '', email: '', feedback: '' });
   const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
@@ -20,7 +28,6 @@ export default function FeedbackForm() {
     }
     setLoading(true);
     try {
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
       const res = await fetch(`${API_BASE_URL}/feedback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -41,16 +48,21 @@ export default function FeedbackForm() {
     <>
       <Fab
         color="primary"
-        aria-label="feedback"
+        aria-label="Send feedback"
         onClick={() => setOpen(true)}
-        sx={{ position: 'fixed', bottom: 32, right: 32, zIndex: 1300 }}
+        sx={{
+          position: 'fixed',
+          bottom: onHomePage && isMobile ? 88 : 32,
+          right: 24,
+          zIndex: 1100
+        }}
       >
         <FeedbackIcon />
       </Fab>
-      <Modal open={open} onClose={() => setOpen(false)}>
-        <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 400 }}>
+      <Modal open={open} onClose={() => setOpen(false)} aria-labelledby="feedback-modal-title">
+        <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 400, maxWidth: '92vw' }}>
           <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant="h6" sx={{ mb: 2 }}>We value your feedback!</Typography>
+            <Typography id="feedback-modal-title" variant="h6" sx={{ mb: 2 }}>We value your feedback!</Typography>
             <Box component="form" onSubmit={handleSubmit}>
               <TextField
                 label="Name (optional)"

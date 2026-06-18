@@ -2,6 +2,7 @@ const express = require('express');
 const { auth } = require('../middleware/auth');
 const User = require('../models/User');
 const Donation = require('../models/Donation');
+const { parsePagination } = require('../utils/pagination');
 const router = express.Router();
 
 // @route   GET /api/users/profile
@@ -27,13 +28,13 @@ router.get('/profile', auth, async (req, res) => {
 // @access  Private
 router.get('/donations', auth, async (req, res) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
+    const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 10 });
 
     const donations = await Donation.find({ donor: req.user.id })
       .populate('program', 'name category image')
       .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
+      .limit(limit)
+      .skip(skip)
       .exec();
 
     const total = await Donation.countDocuments({ donor: req.user.id });
